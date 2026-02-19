@@ -20,11 +20,7 @@ export function JoinQueueScreen() {
   function getEstimatedWait(serviceId: string) {
     const service = services.find((s) => s.id === serviceId)
     const length = getQueueLength(serviceId)
-    return Math.min(
-      Math.ceil((service?.expectedDuration ?? 15) * length),
-      180
-    )
-    
+    return (service?.expectedDuration ?? 15) * length
   }
 
   const alreadyInQueue = !!currentEntry
@@ -39,7 +35,7 @@ export function JoinQueueScreen() {
     <div className="flex flex-col gap-6">
       <div>
         <h1 className="text-2xl font-bold text-foreground">Join a Queue</h1>
-        <p className="text-muted-foreground mt-1">Select a clinic location (Houston, Pasadena, Sugar Land) to join its queue.</p>
+        <p className="text-muted-foreground mt-1">Select a location (Houston, Pasadena, Sugar Land) to join its queue.</p>
       </div>
 
       {alreadyInQueue && (
@@ -53,7 +49,7 @@ export function JoinQueueScreen() {
       {openServices.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center">
-            <p className="text-muted-foreground">No clinic locations are currently available.</p>
+            <p className="text-muted-foreground">No locations are currently available.</p>
           </CardContent>
         </Card>
       ) : (
@@ -91,8 +87,7 @@ export function JoinQueueScreen() {
                   </div>
                   <Button
                     onClick={() => joinQueue(service.id)}
-                    disabled={alreadyInQueue && !isAlreadyInThis}
-                    variant={isAlreadyInThis ? "secondary" : "default"}
+                    disabled={alreadyInQueue}
                     className="w-full"
                   >
                     {isAlreadyInThis ? "Already In Queue" : "Join Queue"}
