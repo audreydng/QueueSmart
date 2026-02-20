@@ -197,7 +197,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   )
 
   const register = useCallback(
-    (email: string, _password: string, name: string, role: "user" | "staff" | "administrator") => {
+    (email: string, password: string, name: string, role: "user" | "staff" | "administrator") => {
       if (users.some((u) => u.email === email)) {
         return { success: false, error: "Email already registered." }
       }
