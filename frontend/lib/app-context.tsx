@@ -82,12 +82,12 @@ const INITIAL_QUEUE_ENTRIES: QueueEntry[] = [
 ]
 
 const SEED_USERS: User[] = [
-  { id: "user-seed-1", email: "alice@example.com", name: "Alice Johnson", role: "user", createdAt: new Date().toISOString() },
-  { id: "user-seed-2", email: "bob@example.com", name: "Bob Smith", role: "user", createdAt: new Date().toISOString() },
-  { id: "user-seed-3", email: "charlie@example.com", name: "Charlie Lee", role: "user", createdAt: new Date().toISOString() },
-  { id: "user-seed-4", email: "dana@example.com", name: "Dana White", role: "user", createdAt: new Date().toISOString() },
-  { id: "staff-seed-1", email: "staff@example.com", name: "Staff User", role: "staff", createdAt: new Date().toISOString() },
-  { id: "admin-seed-1", email: "admin@example.com", name: "Administrator", role: "administrator", createdAt: new Date().toISOString() },
+  { id: "user-seed-1", email: "alice@example.com", name: "Alice Johnson", role: "user", password: "password123", createdAt: new Date().toISOString() },
+  { id: "user-seed-2", email: "bob@example.com", name: "Bob Smith", role: "user", password: "password123", createdAt: new Date().toISOString() },
+  { id: "user-seed-3", email: "charlie@example.com", name: "Charlie Lee", role: "user", password: "password123", createdAt: new Date().toISOString() },
+  { id: "user-seed-4", email: "dana@example.com", name: "Dana White", role: "user", password: "password123", createdAt: new Date().toISOString() },
+  { id: "staff-seed-1", email: "staff@example.com", name: "Staff User", role: "staff", serviceId: "svc-1", password: "staff123", createdAt: new Date().toISOString() },
+  { id: "admin-seed-1", email: "admin@example.com", name: "Administrator", role: "administrator", password: "admin123", createdAt: new Date().toISOString() },
 ]
 
 interface AppState {
@@ -103,6 +103,8 @@ interface AppState {
 interface AppContextType extends AppState {
   login: (email: string, password: string) => { success: boolean; error?: string }
   register: (email: string, password: string, name: string, role: "user" | "staff" | "administrator") => { success: boolean; error?: string }
+  createStaffMember: (payload: { name: string; email: string; password: string; serviceId: string }) => { success: boolean; error?: string }
+  removeStaffMember: (userId: string) => { success: boolean; error?: string }
   logout: () => void
   joinQueue: (serviceId: string) => void
   leaveQueue: (entryId: string) => void
@@ -184,9 +186,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   const login = useCallback(
-    (email: string, _password: string) => {
+    (email: string, password: string) => {
       const user = users.find((u) => u.email === email)
       if (!user) return { success: false, error: "Invalid email or password." }
+      if (user.password && user.password !== password) return { success: false, error: "Invalid email or password." }
       setCurrentUser(user)
       return { success: true }
     },
@@ -203,6 +206,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         email,
         name,
         role,
+        password,
         createdAt: new Date().toISOString(),
       }
       setUsers((prev) => [...prev, newUser])
@@ -210,6 +214,41 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       return { success: true }
     },
     [users]
+  )
+
+  const createStaffMember = useCallback(
+    ({ name, email, password, serviceId }: { name: string; email: string; password: string; serviceId: string }) => {
+      if (users.some((u) => u.email.toLowerCase() === email.toLowerCase())) {
+        return { success: false, error: "Email already registered." }
+      }
+      const newStaff: User = {
+        id: `staff-${generateId()}`,
+        name: name.trim(),
+        email: email.trim(),
+        password,
+        role: "staff",
+        serviceId,
+        createdAt: new Date().toISOString(),
+      }
+      setUsers((prev) => [...prev, newStaff])
+      return { success: true }
+    },
+    [users]
+  )
+
+  const removeStaffMember = useCallback(
+    (userId: string) => {
+      const target = users.find((u) => u.id === userId)
+      if (!target || target.role !== "staff") {
+        return { success: false, error: "Staff member not found." }
+      }
+      if (currentUser?.id === userId) {
+        return { success: false, error: "You cannot remove your own account." }
+      }
+      setUsers((prev) => prev.filter((u) => u.id !== userId))
+      return { success: true }
+    },
+    [users, currentUser]
   )
 
   const logout = useCallback(() => {
@@ -592,6 +631,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         appointments,
         login,
         register,
+        createStaffMember,
+        removeStaffMember,
         logout,
         joinQueue,
         leaveQueue,

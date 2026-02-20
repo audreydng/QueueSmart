@@ -14,6 +14,7 @@ import { AdministratorDashboard } from "@/components/admin/administrator/adminis
 import { ServiceManagement } from "@/components/admin/administrator/service-management"
 import { QueueManagement } from "@/components/admin/staff/queue-management"
 import { PriorityRules } from "@/components/admin/administrator/priority-rules"
+import { EmployeeManagement } from "@/components/admin/administrator/employee-management"
 import { NotificationsScreen } from "@/components/notifications"
 
 function AppContent() {
@@ -71,6 +72,8 @@ function AppContent() {
         return <ServiceManagement />
       case "priority-rules":
         return <PriorityRules onNavigate={setCurrentView} />
+      case "employee-management":
+        return <EmployeeManagement />
       // Shared
       case "notifications":
         return <NotificationsScreen />

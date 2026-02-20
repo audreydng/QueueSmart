@@ -5,6 +5,8 @@ export interface User {
   email: string
   name: string
   role: UserRole
+  serviceId?: string
+  password?: string
   createdAt: string
 }
 
