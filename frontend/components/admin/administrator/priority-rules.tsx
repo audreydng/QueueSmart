@@ -11,9 +11,9 @@ export function PriorityRules({ onNavigate }: { onNavigate: (view: string) => vo
   const { services } = useApp()
 
   const priorityLabels: Record<string, string> = {
-    low: "Low — normal traffic",
-    medium: "Medium — moderate",
-    high: "High — busier / priority focus",
+    low: "Low - normal traffic",
+    medium: "Medium - moderate",
+    high: "High - busier / priority focus",
   }
   const priorityColors: Record<string, string> = {
     low: "bg-muted text-muted-foreground",
@@ -36,7 +36,7 @@ export function PriorityRules({ onNavigate }: { onNavigate: (view: string) => vo
           </CardTitle>
           <CardDescription>
             Each location has a priority level. High-priority locations are treated as busier or more important;
-            staff may focus on them first. Priority does not change customer order within a queue — it helps with
+            staff may focus on them first. Priority does not change customer order within a queue - it helps with
             resource allocation and reporting.
           </CardDescription>
         </CardHeader>
@@ -66,7 +66,7 @@ export function PriorityRules({ onNavigate }: { onNavigate: (view: string) => vo
                 {services.map((service) => (
                   <TableRow key={service.id}>
                     <TableCell>
-                      <p className="font-medium">{service.name} — {service.zipCode}</p>
+                      <p className="font-medium">{service.name} - {service.zipCode}</p>
                     </TableCell>
                     <TableCell>{service.expectedDuration} min</TableCell>
                     <TableCell>
