@@ -20,7 +20,11 @@ export function JoinQueueScreen() {
   function getEstimatedWait(serviceId: string) {
     const service = services.find((s) => s.id === serviceId)
     const length = getQueueLength(serviceId)
-    return (service?.expectedDuration ?? 15) * length
+    return Math.min(
+      Math.ceil((service?.expectedDuration ?? 15) * length),
+      180
+    )
+    
   }
 
   const alreadyInQueue = !!currentEntry
@@ -87,7 +91,8 @@ export function JoinQueueScreen() {
                   </div>
                   <Button
                     onClick={() => joinQueue(service.id)}
-                    disabled={alreadyInQueue}
+                    disabled={alreadyInQueue && !isAlreadyInThis}
+                    variant={isAlreadyInThis ? "secondary" : "default"}
                     className="w-full"
                   >
                     {isAlreadyInThis ? "Already In Queue" : "Join Queue"}

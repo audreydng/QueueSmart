@@ -15,12 +15,27 @@ export function LoginForm({ onSwitchToRegister }: { onSwitchToRegister: () => vo
   const [password, setPassword] = useState("")
   const [errors, setErrors] = useState<{ email?: string; password?: string; general?: string }>({})
 
+  const passwordRules = {
+    minLength: password.length >= 6,
+    uppercase: /[A-Z]/.test(password),
+    number: /\d/.test(password),
+    special: /[!@#$%^&*(),.?":{}|<>]/.test(password),
+  }
+  
+  const isPasswordStrong =
+    passwordRules.minLength &&
+    passwordRules.uppercase &&
+    passwordRules.number &&
+    passwordRules.special
+
   function validate() {
     const newErrors: typeof errors = {}
     if (!email.trim()) newErrors.email = "Email is required."
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) newErrors.email = "Enter a valid email address."
     if (!password.trim()) newErrors.password = "Password is required."
-    else if (password.length < 6) newErrors.password = "Password must be at least 6 characters."
+    else if (!isPasswordStrong) { newErrors.password =
+      "Password must be at least 6 characters and include an uppercase letter, number, and special character."
+    }
     return newErrors
   }
 
@@ -113,6 +128,18 @@ export function RegisterForm({ onSwitchToLogin }: { onSwitchToLogin: () => void 
     confirmPassword?: string
     general?: string
   }>({})
+  const passwordRules = {
+    minLength: password.length >= 8,
+    uppercase: /[A-Z]/.test(password),
+    number: /\d/.test(password),
+    special: /[!@#$%^&*(),.?":{}|<>-_+=]/.test(password),
+  }
+  
+  const isPasswordStrong =
+    passwordRules.minLength &&
+    passwordRules.uppercase &&
+    passwordRules.number &&
+    passwordRules.special
 
   function validate() {
     const newErrors: typeof errors = {}
@@ -192,6 +219,13 @@ export function RegisterForm({ onSwitchToLogin }: { onSwitchToLogin: () => void 
                 onChange={(e) => setPassword(e.target.value)}
                 aria-invalid={!!errors.password}
               />
+              {password && ( <ul className="text-xs space-y-1 mt-1">
+                  <PasswordRule valid={passwordRules.minLength} text="At least 8 characters" />
+                  <PasswordRule valid={passwordRules.uppercase} text="One uppercase letter" />
+                  <PasswordRule valid={passwordRules.number} text="One number" />
+                  <PasswordRule valid={passwordRules.special} text="One special character" />
+                </ul>
+              )}
               {errors.password && <p className="text-sm text-destructive">{errors.password}</p>}
             </div>
             <div className="flex flex-col gap-2">
@@ -239,4 +273,20 @@ export function RegisterForm({ onSwitchToLogin }: { onSwitchToLogin: () => void 
       </Card>
     </div>
   )
+  function PasswordRule({ valid, text }: { valid: boolean; text: string }) {
+    return (
+      <li className="flex items-center gap-2">
+        <span
+          className={`text-xs ${
+            valid ? "text-green-600" : "text-muted-foreground"
+          }`}
+        >
+          {valid ? "✓" : "•"}
+        </span>
+        <span className={valid ? "text-green-600" : "text-muted-foreground"}>
+          {text}
+        </span>
+      </li>
+    )
+  }  
 }
