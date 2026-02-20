@@ -43,7 +43,7 @@ export function UserDashboard({ onNavigate }: { onNavigate: (view: string) => vo
             </div>
             <div>
               <p className="text-2xl font-bold text-foreground">{openServices.length}</p>
-              <p className="text-sm text-muted-foreground">Open Locations</p>
+              <p className="text-sm text-muted-foreground">Open Clinic Locations</p>
             </div>
           </CardContent>
         </Card>
