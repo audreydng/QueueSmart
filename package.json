@@ -7,5 +7,9 @@
     "start": "cd frontend && pnpm start",
     "lint": "cd frontend && pnpm lint",
     "install:frontend": "cd frontend && pnpm install"
+  },
+  "dependencies": {
+    "date-fns": "4.1.0",
+    "lucide-react": "^0.564.0"
   }
 }
