@@ -129,10 +129,10 @@ export function RegisterForm({ onSwitchToLogin }: { onSwitchToLogin: () => void 
     general?: string
   }>({})
   const passwordRules = {
-    minLength: password.length >= 8,
+    minLength: password.length >= 6,
     uppercase: /[A-Z]/.test(password),
     number: /\d/.test(password),
-    special: /[!@#$%^&*(),.?":{}|<>-_+=]/.test(password),
+    special: /[!@#$%^&*(),.?":{}|<>_+=-]/.test(password),
   }
   
   const isPasswordStrong =
@@ -220,7 +220,7 @@ export function RegisterForm({ onSwitchToLogin }: { onSwitchToLogin: () => void 
                 aria-invalid={!!errors.password}
               />
               {password && ( <ul className="text-xs space-y-1 mt-1">
-                  <PasswordRule valid={passwordRules.minLength} text="At least 8 characters" />
+                  <PasswordRule valid={passwordRules.minLength} text="At least 6 characters" />
                   <PasswordRule valid={passwordRules.uppercase} text="One uppercase letter" />
                   <PasswordRule valid={passwordRules.number} text="One number" />
                   <PasswordRule valid={passwordRules.special} text="One special character" />
