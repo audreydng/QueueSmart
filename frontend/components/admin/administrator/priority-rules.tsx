@@ -25,7 +25,7 @@ export function PriorityRules({ onNavigate }: { onNavigate: (view: string) => vo
     <div className="flex flex-col gap-6">
       <div>
         <h1 className="text-2xl font-bold text-foreground">Priority rules</h1>
-        <p className="text-muted-foreground mt-1">Configure how queue priority is applied per location.</p>
+        <p className="text-muted-foreground mt-1">Configure how queue priority is applied per service.</p>
       </div>
 
       <Card>
@@ -35,7 +35,7 @@ export function PriorityRules({ onNavigate }: { onNavigate: (view: string) => vo
             How priority works
           </CardTitle>
           <CardDescription>
-            Each location has a priority level. High-priority locations are treated as busier or more important;
+            Each service has a priority level. High-priority services are treated as busier or more important;
             staff may focus on them first. Priority does not change customer order within a queue - it helps with
             resource allocation and reporting.
           </CardDescription>
@@ -45,11 +45,11 @@ export function PriorityRules({ onNavigate }: { onNavigate: (view: string) => vo
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <div>
-            <CardTitle className="text-lg">Priority by location</CardTitle>
-            <CardDescription>Edit locations to change priority (name, zip, duration, priority level).</CardDescription>
+            <CardTitle className="text-lg">Priority by service</CardTitle>
+            <CardDescription>Edit services to change priority (name, duration, priority level).</CardDescription>
           </div>
           <Button size="sm" onClick={() => onNavigate("service-management")}>
-            Manage locations
+            Manage services
           </Button>
         </CardHeader>
         <CardContent>
@@ -57,7 +57,7 @@ export function PriorityRules({ onNavigate }: { onNavigate: (view: string) => vo
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Location / Zip</TableHead>
+                  <TableHead>Service</TableHead>
                   <TableHead>Duration</TableHead>
                   <TableHead>Priority</TableHead>
                 </TableRow>
@@ -66,7 +66,7 @@ export function PriorityRules({ onNavigate }: { onNavigate: (view: string) => vo
                 {services.map((service) => (
                   <TableRow key={service.id}>
                     <TableCell>
-                      <p className="font-medium">{service.name} - {service.zipCode}</p>
+                      <p className="font-medium">{service.name}</p>
                     </TableCell>
                     <TableCell>{service.expectedDuration} min</TableCell>
                     <TableCell>

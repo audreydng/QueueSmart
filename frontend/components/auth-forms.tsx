@@ -15,27 +15,11 @@ export function LoginForm({ onSwitchToRegister }: { onSwitchToRegister: () => vo
   const [password, setPassword] = useState("")
   const [errors, setErrors] = useState<{ email?: string; password?: string; general?: string }>({})
 
-  const passwordRules = {
-    minLength: password.length >= 6,
-    uppercase: /[A-Z]/.test(password),
-    number: /\d/.test(password),
-    special: /[!@#$%^&*(),.?":{}|<>]/.test(password),
-  }
-  
-  const isPasswordStrong =
-    passwordRules.minLength &&
-    passwordRules.uppercase &&
-    passwordRules.number &&
-    passwordRules.special
-
   function validate() {
     const newErrors: typeof errors = {}
     if (!email.trim()) newErrors.email = "Email is required."
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) newErrors.email = "Enter a valid email address."
     if (!password.trim()) newErrors.password = "Password is required."
-    else if (!isPasswordStrong) { newErrors.password =
-      "Password must be at least 6 characters and include an uppercase letter, number, and special character."
-    }
     return newErrors
   }
 
@@ -148,8 +132,11 @@ export function RegisterForm({ onSwitchToLogin }: { onSwitchToLogin: () => void 
     if (!email.trim()) newErrors.email = "Email is required."
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) newErrors.email = "Enter a valid email address."
     if (!password.trim()) newErrors.password = "Password is required."
-    else if (password.length < 6) newErrors.password = "Password must be at least 6 characters."
-    if (password !== confirmPassword) newErrors.confirmPassword = "Passwords do not match."
+    else if (!isPasswordStrong) {
+      newErrors.password = "Password must be at least 6 characters and include an uppercase letter, number, and special character."
+    }
+    if (!confirmPassword.trim()) newErrors.confirmPassword = "Please confirm your password."
+    else if (password !== confirmPassword) newErrors.confirmPassword = "Passwords do not match."
     return newErrors
   }
 

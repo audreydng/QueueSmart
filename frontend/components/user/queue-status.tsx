@@ -29,7 +29,7 @@ export function QueueStatusScreen({ onNavigate }: { onNavigate: (view: string) =
                 You are not currently waiting in any queue.
               </p>
             </div>
-            <Button onClick={() => onNavigate("join-queue")}>Browse Locations</Button>
+            <Button onClick={() => onNavigate("join-queue")}>Browse Services</Button>
           </CardContent>
         </Card>
       </div>
@@ -66,7 +66,7 @@ export function QueueStatusScreen({ onNavigate }: { onNavigate: (view: string) =
         <CardHeader>
           <div className="flex items-start justify-between">
             <div>
-              <CardTitle>{service?.name} - {service?.zipCode}</CardTitle>
+              <CardTitle>{service?.name}</CardTitle>
               <CardDescription className="mt-1">{service?.description}</CardDescription>
             </div>
             <Badge className={statusColors[entry.status]}>

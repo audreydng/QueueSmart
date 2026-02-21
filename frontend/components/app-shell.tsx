@@ -47,7 +47,7 @@ export function AppShell({ children, currentView, onNavigate }: AppShellProps) {
 
   const administratorNav = [
     { id: "admin-dashboard", label: "Dashboard", icon: LayoutDashboard },
-    { id: "service-management", label: "Locations", icon: Settings },
+    { id: "service-management", label: "Services", icon: Settings },
     { id: "priority-rules", label: "Priority rules", icon: ListOrdered },
     { id: "employee-management", label: "Employees", icon: UserCog },
     { id: "notifications", label: "Notifications", icon: Bell, badge: unreadCount },

@@ -16,7 +16,7 @@ export type PriorityLevel = "low" | "medium" | "high"
 export interface Service {
   id: string
   name: string
-  zipCode: string
+  zipCode?: string
   description: string
   expectedDuration: number // minutes
   priority: PriorityLevel

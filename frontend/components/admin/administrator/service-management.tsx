@@ -21,16 +21,14 @@ function ServiceForm({
 }: {
   initialValues?: {
     name: string
-    zipCode: string
     description: string
     expectedDuration: number
     priority: PriorityLevel
   }
-  onSubmit: (values: { name: string; zipCode: string; description: string; expectedDuration: number; priority: PriorityLevel }) => void
+  onSubmit: (values: { name: string; description: string; expectedDuration: number; priority: PriorityLevel }) => void
   submitLabel: string
 }) {
   const [name, setName] = useState(initialValues?.name ?? "")
-  const [zipCode, setZipCode] = useState(initialValues?.zipCode ?? "")
   const [description, setDescription] = useState(initialValues?.description ?? "")
   const [expectedDuration, setExpectedDuration] = useState(String(initialValues?.expectedDuration ?? ""))
   const [priority, setPriority] = useState<PriorityLevel>(initialValues?.priority ?? "low")
@@ -38,9 +36,8 @@ function ServiceForm({
 
   function validate() {
     const errs: Record<string, string> = {}
-    if (!name.trim()) errs.name = "Location name is required."
-    else if (name.trim().length > 100) errs.name = "Location name must be 100 characters or fewer."
-    if (!/^\d{5}(-\d{4})?$/.test(zipCode.trim())) errs.zipCode = "Invalid zip code (e.g. 77002 or 77002-1234)."
+    if (!name.trim()) errs.name = "Service name is required."
+    else if (name.trim().length > 100) errs.name = "Service name must be 100 characters or fewer."
     if (!description.trim()) errs.description = "Description is required."
     const dur = Number(expectedDuration)
     if (!expectedDuration.trim()) errs.expectedDuration = "Expected duration is required."
@@ -59,7 +56,6 @@ function ServiceForm({
     setErrors({})
     onSubmit({
       name: name.trim(),
-      zipCode: zipCode.trim(),
       description: description.trim(),
       expectedDuration: Number(expectedDuration),
       priority,
@@ -69,10 +65,10 @@ function ServiceForm({
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-4">
       <div className="flex flex-col gap-2">
-        <Label htmlFor="svc-name">Location Name</Label>
+        <Label htmlFor="svc-name">Service Name</Label>
         <Input
           id="svc-name"
-          placeholder="e.g., Houston, Pasadena, Sugar Land"
+          placeholder="e.g., General Checkup, Vaccination"
           value={name}
           onChange={(e) => setName(e.target.value)}
           maxLength={100}
@@ -84,22 +80,10 @@ function ServiceForm({
         </div>
       </div>
       <div className="flex flex-col gap-2">
-        <Label htmlFor="svc-zip">Zip Code</Label>
-        <Input
-          id="svc-zip"
-          placeholder="e.g., 77002"
-          value={zipCode}
-          onChange={(e) => setZipCode(e.target.value)}
-          maxLength={10}
-          aria-invalid={!!errors.zipCode}
-        />
-        {errors.zipCode && <p className="text-sm text-destructive">{errors.zipCode}</p>}
-      </div>
-      <div className="flex flex-col gap-2">
         <Label htmlFor="svc-desc">Description</Label>
         <Textarea
           id="svc-desc"
-          placeholder="Describe this location..."
+          placeholder="Describe this service..."
           value={description}
           onChange={(e) => setDescription(e.target.value)}
           rows={3}
@@ -123,7 +107,7 @@ function ServiceForm({
       </div>
       <div className="flex flex-col gap-2">
         <Label>Queue priority</Label>
-        <p className="text-xs text-muted-foreground">How busy or important this location is (e.g. High = busier, more staff focus).</p>
+        <p className="text-xs text-muted-foreground">How busy or important this service is (e.g. High = busier, more staff focus).</p>
         <Select value={priority} onValueChange={(v) => setPriority(v as PriorityLevel)}>
           <SelectTrigger className="w-full">
             <SelectValue />
@@ -157,23 +141,23 @@ export function ServiceManagement() {
     <div className="flex flex-col gap-6">
       <div className="flex items-start justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Location Management</h1>
-          <p className="text-muted-foreground mt-1">Create and manage locations (Houston, Pasadena, Sugar Land) and queues.</p>
+          <h1 className="text-2xl font-bold text-foreground">Service Management</h1>
+          <p className="text-muted-foreground mt-1">Create and manage services (General Checkup, Vaccination, Blood Test, Consultation) and queues.</p>
         </div>
         <Dialog open={createOpen} onOpenChange={setCreateOpen}>
           <DialogTrigger asChild>
             <Button>
               <Plus className="mr-2 h-4 w-4" />
-              New Location
+              New Service
             </Button>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Add Location</DialogTitle>
-              <DialogDescription>Add a new location and zip code for users to join queues.</DialogDescription>
+              <DialogTitle>Add Service</DialogTitle>
+              <DialogDescription>Add a new service for users to join queues.</DialogDescription>
             </DialogHeader>
             <ServiceForm
-              submitLabel="Create Location"
+              submitLabel="Create Service"
               onSubmit={(values) => {
                 createService(values)
                 setCreateOpen(false)
@@ -185,15 +169,15 @@ export function ServiceManagement() {
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">All Locations</CardTitle>
-          <CardDescription>{services.length} locations (Houston, Pasadena, Sugar Land + zipcode)</CardDescription>
+          <CardTitle className="text-lg">All Services</CardTitle>
+          <CardDescription>{services.length} services (General Checkup, Vaccination, Blood Test, Consultation)</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="overflow-x-auto -mx-6">
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Location / Zip</TableHead>
+                  <TableHead>Service</TableHead>
                   <TableHead>Duration</TableHead>
                   <TableHead>Queue priority</TableHead>
                   <TableHead>Status</TableHead>
@@ -205,7 +189,7 @@ export function ServiceManagement() {
                   <TableRow key={service.id}>
                     <TableCell>
                       <div>
-                        <p className="font-medium">{service.name} - {service.zipCode}</p>
+                        <p className="font-medium">{service.name}</p>
                         <p className="text-xs text-muted-foreground line-clamp-1">{service.description}</p>
                       </div>
                     </TableCell>
@@ -237,14 +221,13 @@ export function ServiceManagement() {
                         </DialogTrigger>
                         <DialogContent>
                           <DialogHeader>
-                            <DialogTitle>Edit Location</DialogTitle>
-                            <DialogDescription>Update location details and zip code.</DialogDescription>
+                            <DialogTitle>Edit Service</DialogTitle>
+                            <DialogDescription>Update service details.</DialogDescription>
                           </DialogHeader>
                           {editService && (
                             <ServiceForm
                               initialValues={{
                                 name: editService.name,
-                                zipCode: editService.zipCode,
                                 description: editService.description,
                                 expectedDuration: editService.expectedDuration,
                                 priority: editService.priority,

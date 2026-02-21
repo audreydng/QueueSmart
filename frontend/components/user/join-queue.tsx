@@ -39,7 +39,7 @@ export function JoinQueueScreen() {
     <div className="flex flex-col gap-6">
       <div>
         <h1 className="text-2xl font-bold text-foreground">Join a Queue</h1>
-        <p className="text-muted-foreground mt-1">Select a clinic location (Houston, Pasadena, Sugar Land) to join its queue.</p>
+        <p className="text-muted-foreground mt-1">Select a clinic service (General Checkup, Vaccination, Blood Test, Consultation) to join its queue.</p>
       </div>
 
       {alreadyInQueue && (
@@ -53,7 +53,7 @@ export function JoinQueueScreen() {
       {openServices.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center">
-            <p className="text-muted-foreground">No clinic locations are currently available.</p>
+            <p className="text-muted-foreground">No clinic services are currently available.</p>
           </CardContent>
         </Card>
       ) : (
@@ -67,8 +67,8 @@ export function JoinQueueScreen() {
               <Card key={service.id} className="flex flex-col">
                 <CardHeader>
                   <div className="flex items-start justify-between">
-                    <CardTitle className="text-base">{service.name} - {service.zipCode}</CardTitle>
-                    <Badge className={priorityColors[service.priority]} variant="outline" title="Queue priority: busier locations may be high.">
+                    <CardTitle className="text-base">{service.name}</CardTitle>
+                    <Badge className={priorityColors[service.priority]} variant="outline" title="Queue priority: busier services may be high.">
                       {service.priority}
                     </Badge>
                   </div>

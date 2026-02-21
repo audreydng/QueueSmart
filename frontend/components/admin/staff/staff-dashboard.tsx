@@ -15,7 +15,7 @@ export function StaffDashboard({ onNavigate }: { onNavigate: (view: string) => v
     <div className="flex flex-col gap-6">
       <div>
         <h1 className="text-2xl font-bold text-foreground">Staff Dashboard</h1>
-        <p className="text-muted-foreground mt-1">Call next patient, check in, and update queue status by location.</p>
+        <p className="text-muted-foreground mt-1">Call next patient, check in, and update queue status by service.</p>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
@@ -26,7 +26,7 @@ export function StaffDashboard({ onNavigate }: { onNavigate: (view: string) => v
             </div>
             <div>
               <p className="text-2xl font-bold text-foreground">{services.filter((s) => s.isOpen).length}</p>
-              <p className="text-sm text-muted-foreground">Open locations</p>
+              <p className="text-sm text-muted-foreground">Open services</p>
             </div>
           </CardContent>
         </Card>
@@ -45,7 +45,7 @@ export function StaffDashboard({ onNavigate }: { onNavigate: (view: string) => v
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">Queues by location</CardTitle>
+          <CardTitle className="text-lg">Queues by service</CardTitle>
           <CardDescription>Manage queue: call next, check in patients, update status.</CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-3">
@@ -57,7 +57,7 @@ export function StaffDashboard({ onNavigate }: { onNavigate: (view: string) => v
                 className="flex items-center justify-between rounded-lg border border-border bg-card p-4"
               >
                 <div>
-                  <p className="font-medium">{service.name} ({service.zipCode})</p>
+                  <p className="font-medium">{service.name}</p>
                   <p className="text-sm text-muted-foreground">
                     {queue.length} {queue.length === 1 ? "person" : "people"} waiting
                     {!service.isOpen && " · Closed"}

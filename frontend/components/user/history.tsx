@@ -51,7 +51,7 @@ export function HistoryScreen() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Location</TableHead>
+                    <TableHead>Service</TableHead>
                     <TableHead>Date</TableHead>
                     <TableHead>Outcome</TableHead>
                   </TableRow>
