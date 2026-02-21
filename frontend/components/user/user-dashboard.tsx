@@ -43,7 +43,7 @@ export function UserDashboard({ onNavigate }: { onNavigate: (view: string) => vo
             </div>
             <div>
               <p className="text-2xl font-bold text-foreground">{openServices.length}</p>
-              <p className="text-sm text-muted-foreground">Open Clinic Locations</p>
+              <p className="text-sm text-muted-foreground">Open Clinic Services</p>
             </div>
           </CardContent>
         </Card>
@@ -85,7 +85,6 @@ export function UserDashboard({ onNavigate }: { onNavigate: (view: string) => vo
               <div className="flex flex-col gap-1">
                 <p className="font-medium text-foreground">
                   {getServiceById(queueEntry.serviceId)?.name}
-                  {getServiceById(queueEntry.serviceId)?.zipCode && ` - ${getServiceById(queueEntry.serviceId)?.zipCode}`}
                 </p>
                 <p className="text-sm text-muted-foreground">
                   Position #{queueEntry.position} &middot; Est. wait{" "}

@@ -12,13 +12,12 @@ import type {
   Appointment,
 } from "@/lib/types"
 
-// Seed data - locations: Houston, Pasadena, Sugar Land + zipcode
+// Seed data - services: General Checkup, Vaccination, Blood Test, Consultation
 const INITIAL_SERVICES: Service[] = [
   {
     id: "svc-1",
-    name: "Houston",
-    zipCode: "77002",
-    description: "Houston location - Downtown.",
+    name: "General Checkup",
+    description: "Routine health check and basic consultation.",
     expectedDuration: 15,
     priority: "low",
     isOpen: true,
@@ -26,9 +25,8 @@ const INITIAL_SERVICES: Service[] = [
   },
   {
     id: "svc-2",
-    name: "Pasadena",
-    zipCode: "77501",
-    description: "Pasadena location.",
+    name: "Vaccination",
+    description: "Immunization and vaccine administration service.",
     expectedDuration: 30,
     priority: "medium",
     isOpen: true,
@@ -36,13 +34,21 @@ const INITIAL_SERVICES: Service[] = [
   },
   {
     id: "svc-3",
-    name: "Sugar Land",
-    zipCode: "77478",
-    description: "Sugar Land location.",
+    name: "Blood Test",
+    description: "Sample collection and lab test screening.",
     expectedDuration: 20,
     priority: "high",
     isOpen: true,
     createdAt: new Date(Date.now() - 3 * 86400000).toISOString(),
+  },
+  {
+    id: "svc-4",
+    name: "Consultation",
+    description: "Doctor consultation for symptoms and treatment planning.",
+    expectedDuration: 25,
+    priority: "medium",
+    isOpen: true,
+    createdAt: new Date(Date.now() - 2 * 86400000).toISOString(),
   },
 ]
 
@@ -151,7 +157,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       id: "hist-1",
       userId: "user-seed-1",
       serviceId: "svc-2",
-      serviceName: "Pasadena (77501)",
+      serviceName: "Vaccination",
       status: "served",
       joinedAt: new Date(Date.now() - 86400000 * 2).toISOString(),
       completedAt: new Date(Date.now() - 86400000 * 2 + 1800000).toISOString(),
@@ -280,7 +286,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       addNotification(
         currentUser.id,
         "Joined Queue",
-        `You joined the queue for ${service ? `${service.name} (${service.zipCode})` : "a location"}. Your position is #${newEntry.position}.`
+        `You joined the queue for ${service ? service.name : "a service"}. Your position is #${newEntry.position}.`
       )
     },
     [currentUser, queueEntries, services, addNotification]
@@ -312,7 +318,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           id: `hist-${generateId()}`,
           userId: currentUser.id,
           serviceId: entry.serviceId,
-          serviceName: service ? `${service.name} (${service.zipCode})` : "Unknown",
+          serviceName: service ? service.name : "Unknown",
           status: "left",
           joinedAt: entry.joinedAt,
           completedAt: new Date().toISOString(),
@@ -320,7 +326,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         ...prev,
       ])
 
-      addNotification(currentUser.id, "Left Queue", `You left the queue for ${service ? `${service.name} (${service.zipCode})` : "a location"}.`)
+      addNotification(currentUser.id, "Left Queue", `You left the queue for ${service ? service.name : "a service"}.`)
     },
     [currentUser, queueEntries, services, addNotification]
   )
@@ -375,7 +381,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           id: `hist-${generateId()}`,
           userId: nextEntry.userId,
           serviceId,
-          serviceName: service ? `${service.name} (${service.zipCode})` : "Unknown",
+          serviceName: service ? service.name : "Unknown",
           status: "served",
           joinedAt: nextEntry.joinedAt,
           completedAt: new Date().toISOString(),
@@ -383,7 +389,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         ...prev,
       ])
 
-      addNotification(nextEntry.userId, "You Were Served", `You have been served for ${service ? `${service.name} (${service.zipCode})` : "a location"}.`)
+      addNotification(nextEntry.userId, "You Were Served", `You have been served for ${service ? service.name : "a service"}.`)
 
       // Notify the next person they're almost ready
       const remainingAfter = queueEntries
@@ -394,7 +400,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         addNotification(
           remainingAfter[0].userId,
           "Almost Ready",
-          `You are next in line for ${service ? `${service.name} (${service.zipCode})` : "a location"}!`
+          `You are next in line for ${service ? service.name : "a service"}!`
         )
       }
     },
@@ -425,7 +431,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             id: `hist-${generateId()}`,
             userId: entry.userId,
             serviceId: entry.serviceId,
-            serviceName: service ? `${service.name} (${service.zipCode})` : "Unknown",
+            serviceName: service ? service.name : "Unknown",
             status: "left",
             joinedAt: entry.joinedAt,
             completedAt: new Date().toISOString(),
@@ -450,7 +456,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             id: `hist-${generateId()}`,
             userId: entry.userId,
             serviceId: entry.serviceId,
-            serviceName: service ? `${service.name} (${service.zipCode})` : "Unknown",
+            serviceName: service ? service.name : "Unknown",
             status: "served",
             joinedAt: entry.joinedAt,
             completedAt: new Date().toISOString(),
@@ -530,7 +536,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       addNotification(
         currentUser.id,
         "Appointment Booked",
-        `Your appointment for ${service ? `${service.name} (${service.zipCode})` : "a location"} on ${date} at ${time} has been confirmed.`
+        `Your appointment for ${service ? service.name : "a service"} on ${date} at ${time} has been confirmed.`
       )
     },
     [currentUser, services, addNotification]

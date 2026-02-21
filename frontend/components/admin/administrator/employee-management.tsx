@@ -129,7 +129,7 @@ function EmployeeForm({
           <SelectContent>
             {services.map((service) => (
               <SelectItem key={service.id} value={service.id}>
-                {service.name} - {service.zipCode}
+                {service.name}
               </SelectItem>
             ))}
           </SelectContent>
@@ -152,7 +152,7 @@ export function EmployeeManagement() {
     if (!serviceId) return "Not assigned"
     const service = services.find((item) => item.id === serviceId)
     if (!service) return "Not assigned"
-    return `${service.name} (${service.zipCode})`
+    return service.name
   }
 
   return (

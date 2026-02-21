@@ -19,7 +19,7 @@ export function AdministratorDashboard({ onNavigate }: { onNavigate: (view: stri
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-base font-medium">Locations</CardTitle>
+            <CardTitle className="text-base font-medium">Services</CardTitle>
             <Button size="sm" variant="outline" onClick={() => onNavigate("service-management")}>
               <Settings className="mr-2 h-4 w-4" />
               Manage
@@ -27,7 +27,7 @@ export function AdministratorDashboard({ onNavigate }: { onNavigate: (view: stri
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-bold">{services.length}</p>
-            <p className="text-xs text-muted-foreground">Create and edit locations and queues.</p>
+            <p className="text-xs text-muted-foreground">Create and edit services and queues.</p>
           </CardContent>
         </Card>
         <Card>
@@ -39,8 +39,8 @@ export function AdministratorDashboard({ onNavigate }: { onNavigate: (view: stri
             </Button>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold">By location</p>
-            <p className="text-xs text-muted-foreground">Set low / medium / high per location.</p>
+            <p className="text-2xl font-bold">By service</p>
+            <p className="text-xs text-muted-foreground">Set low / medium / high per service.</p>
           </CardContent>
         </Card>
         <Card>

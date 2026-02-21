@@ -6,3 +6,6 @@ build
 *.log
 .env.local
 .env.*.local
+package-lock.json
+frontend/pnpm-lock.yaml
+*.tsbuildinfo

@@ -49,7 +49,7 @@ export function UsageStatistics() {
             </div>
             <div>
               <p className="text-2xl font-bold text-foreground">{openCount}</p>
-              <p className="text-sm text-muted-foreground">Open locations</p>
+              <p className="text-sm text-muted-foreground">Open services</p>
             </div>
           </CardContent>
         </Card>
@@ -71,7 +71,7 @@ export function UsageStatistics() {
             </div>
             <div>
               <p className="text-2xl font-bold text-foreground">{services.length}</p>
-              <p className="text-sm text-muted-foreground">Total locations</p>
+              <p className="text-sm text-muted-foreground">Total services</p>
             </div>
           </CardContent>
         </Card>
@@ -79,8 +79,8 @@ export function UsageStatistics() {
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">Served today by location</CardTitle>
-          <CardDescription>Number of patients served per location today.</CardDescription>
+          <CardTitle className="text-lg">Served today by service</CardTitle>
+          <CardDescription>Number of patients served per service today.</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="space-y-3">

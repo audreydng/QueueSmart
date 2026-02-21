@@ -134,7 +134,7 @@ export function ScheduleAppointment() {
       <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Schedule Appointment</h1>
-          <p className="text-muted-foreground mt-1">Pick a date, time, and location (Houston, Pasadena, Sugar Land) to book your appointment.</p>
+          <p className="text-muted-foreground mt-1">Pick a date, time, and service (General Checkup, Vaccination, Blood Test, Consultation) to book your appointment.</p>
         </div>
         {upcomingAppointments.length > 0 && (
           <Badge className="bg-primary/10 text-primary border border-primary/20 self-start sm:self-auto">
@@ -146,7 +146,7 @@ export function ScheduleAppointment() {
       {/* Service selector */}
       {openServices.length > 1 && (
         <div className="flex flex-col gap-2">
-          <label className="text-sm font-medium text-foreground" htmlFor="service-select">Select Location</label>
+          <label className="text-sm font-medium text-foreground" htmlFor="service-select">Select Service</label>
           <div className="relative">
             <select
               id="service-select"
@@ -159,7 +159,7 @@ export function ScheduleAppointment() {
             >
               {openServices.map((s) => (
                 <option key={s.id} value={s.id}>
-                  {s.name} ({s.zipCode}) - {s.expectedDuration} min
+                  {s.name} - {s.expectedDuration} min
                 </option>
               ))}
             </select>
@@ -295,14 +295,14 @@ export function ScheduleAppointment() {
                 <div className="flex-1">
                   <div className="flex items-center gap-1.5 text-primary-foreground/70 text-xs">
                     <MapPin className="h-3 w-3" />
-                    <span>QueueSmart Locations</span>
+                    <span>QueueSmart Services</span>
                   </div>
-                  <h3 className="text-lg font-bold text-primary-foreground mt-0.5">{selectedService.name} ({selectedService.zipCode})</h3>
+                  <h3 className="text-lg font-bold text-primary-foreground mt-0.5">{selectedService.name}</h3>
                   <p className="text-primary-foreground/70 text-xs">{selectedService.description}</p>
                 </div>
               </div>
             ) : (
-              <div className="text-primary-foreground/70 text-sm">Select a location to see details</div>
+              <div className="text-primary-foreground/70 text-sm">Select a service to see details</div>
             )}
           </div>
           <CardContent className="p-6">
@@ -394,7 +394,7 @@ export function ScheduleAppointment() {
                 <Card key={apt.id}>
                   <CardContent className="flex items-start justify-between p-4">
                     <div className="flex flex-col gap-1">
-                      <p className="text-sm font-semibold text-foreground">{svc ? `${svc.name} (${svc.zipCode})` : "Location"}</p>
+                      <p className="text-sm font-semibold text-foreground">{svc ? svc.name : "Service"}</p>
                       <div className="flex items-center gap-3 text-xs text-muted-foreground">
                         <span className="flex items-center gap-1">
                           <CalendarIcon className="h-3 w-3" />
