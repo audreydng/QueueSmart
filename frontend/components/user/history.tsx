@@ -5,10 +5,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { CalendarDays } from "lucide-react"
-import { format } from "date-fns"
 
 export function HistoryScreen() {
   const { currentUser, history } = useApp()
+
   const userHistory = history.filter((h) => h.userId === currentUser?.id)
 
   const statusLabels: Record<string, string> = {
@@ -17,6 +17,7 @@ export function HistoryScreen() {
     waiting: "Waiting",
     "almost-ready": "Almost Ready",
   }
+
   const statusColors: Record<string, string> = {
     served: "bg-success/15 text-success border border-success/30",
     left: "bg-muted text-muted-foreground",
@@ -38,6 +39,7 @@ export function HistoryScreen() {
             {userHistory.length} {userHistory.length === 1 ? "entry" : "entries"} total
           </CardDescription>
         </CardHeader>
+
         <CardContent>
           {userHistory.length === 0 ? (
             <div className="flex flex-col items-center gap-3 py-8 text-center">
@@ -52,25 +54,41 @@ export function HistoryScreen() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Location</TableHead>
-                    <TableHead>Date</TableHead>
-                    <TableHead>Outcome</TableHead>
+                    <TableHead>Joined</TableHead>
+                    <TableHead>Status</TableHead>
                   </TableRow>
                 </TableHeader>
+
                 <TableBody>
                   {userHistory.map((entry) => (
                     <TableRow key={entry.id}>
-                      <TableCell className="font-medium">{entry.serviceName}</TableCell>
-                      <TableCell className="text-muted-foreground">
-                        {format(new Date(entry.joinedAt), "MMM d, yyyy h:mm a")}
+                      <TableCell className="font-medium">
+                        {entry.serviceName ?? "Unknown"}
                       </TableCell>
+
+                      {/* SAFE TIME (fixes hydration error) */}
+                      <TableCell className="text-muted-foreground">
+                        {new Date(entry.joinedAt).toLocaleString([], {
+                          year: "numeric",
+                          month: "short",
+                          day: "numeric",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </TableCell>
+
                       <TableCell>
-                        <Badge className={statusColors[entry.status]} variant="outline">
-                          {statusLabels[entry.status]}
+                        <Badge
+                          variant="outline"
+                          className={statusColors[entry.status] ?? ""}
+                        >
+                          {statusLabels[entry.status] ?? entry.status}
                         </Badge>
                       </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
+
               </Table>
             </div>
           )}
