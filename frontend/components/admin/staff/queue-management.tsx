@@ -24,7 +24,7 @@ export function QueueManagement() {
   const [selectedServiceId, setSelectedServiceId] = useState(services[0]?.id ?? "")
   const [mounted, setMounted] = useState(false)
 
-  // 👇 prevents hydration mismatch
+
   useEffect(() => {
     setMounted(true)
   }, [])
