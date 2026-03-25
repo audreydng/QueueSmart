@@ -1,34 +1,87 @@
-// P2 - Services Management Controller
 const { v4: uuidv4 } = require("uuid")
 const store = require("../data/store")
 
 const VALID_PRIORITIES = ["low", "medium", "high"]
 
 // GET /api/services
-// Returns all services (public)
-function getServices(req, res) {
-  // TODO P2: return store.services
+function getServices(_req, res) {
+  return res.json(store.services)
 }
 
-// POST /api/services
-// Creates a new service (admin only)
-// Body: { name, description, expectedDuration, priority }
-// Validation: name max 100 chars, description required, expectedDuration 1-480, priority in VALID_PRIORITIES
+// POST /api/services (admin only)
 function createService(req, res) {
-  // TODO P2: validate fields, create service with uuidv4 id, push to store.services
+  const { name, description, expectedDuration, priority } = req.body
+
+  if (name.length > 100) {
+    return res.status(400).json({ error: "name must be at most 100 characters" })
+  }
+
+  const duration = Number(expectedDuration)
+  if (isNaN(duration) || duration < 1 || duration > 480) {
+    return res.status(400).json({ error: "expectedDuration must be between 1 and 480" })
+  }
+
+  if (!VALID_PRIORITIES.includes(priority)) {
+    return res.status(400).json({ error: `priority must be one of: ${VALID_PRIORITIES.join(", ")}` })
+  }
+
+  const service = {
+    id: uuidv4(),
+    name: name.trim(),
+    description: description.trim(),
+    expectedDuration: duration,
+    priority,
+    isOpen: true,
+    createdAt: new Date().toISOString(),
+  }
+
+  store.services.push(service)
+  return res.status(201).json(service)
 }
 
-// PUT /api/services/:id
-// Updates a service (admin only)
-// Body: any subset of { name, description, expectedDuration, priority }
+// PUT /api/services/:id (admin only)
 function updateService(req, res) {
-  // TODO P2: find service by req.params.id, return 404 if not found, apply updates
+  const index = store.services.findIndex((s) => s.id === req.params.id)
+  if (index === -1) {
+    return res.status(404).json({ error: "Service not found" })
+  }
+
+  const { name, description, expectedDuration, priority } = req.body
+
+  if (name !== undefined && name.length > 100) {
+    return res.status(400).json({ error: "name must be at most 100 characters" })
+  }
+
+  if (expectedDuration !== undefined) {
+    const duration = Number(expectedDuration)
+    if (isNaN(duration) || duration < 1 || duration > 480) {
+      return res.status(400).json({ error: "expectedDuration must be between 1 and 480" })
+    }
+  }
+
+  if (priority !== undefined && !VALID_PRIORITIES.includes(priority)) {
+    return res.status(400).json({ error: `priority must be one of: ${VALID_PRIORITIES.join(", ")}` })
+  }
+
+  const updates = {}
+  if (name !== undefined) updates.name = name.trim()
+  if (description !== undefined) updates.description = description.trim()
+  if (expectedDuration !== undefined) updates.expectedDuration = Number(expectedDuration)
+  if (priority !== undefined) updates.priority = priority
+
+  store.services[index] = { ...store.services[index], ...updates }
+  return res.json(store.services[index])
 }
 
-// PATCH /api/services/:id/toggle
-// Toggles isOpen (admin only)
+// PATCH /api/services/:id/toggle (admin only)
 function toggleService(req, res) {
-  // TODO P2: find service by req.params.id, flip isOpen, return updated service
+  const service = store.services.find((s) => s.id === req.params.id)
+  if (!service) {
+    return res.status(404).json({ error: "Service not found" })
+  }
+
+  service.isOpen = !service.isOpen
+  return res.json(service)
 }
 
 module.exports = { getServices, createService, updateService, toggleService }
