@@ -1,93 +1,241 @@
-// P3 - Queue Management Controller
+//Queue Management Controller
 const { v4: uuidv4 } = require("uuid")
 const store = require("../data/store")
 
-// GET /api/queue
-// Returns all queue entries across all services (staff/admin)
+//For mock
+function notify(userId, message) {
+  store.notifications.push({
+    id: uuidv4(),
+    userId,
+    message,
+    createdAt: new Date(),
+  })
+}
+
+//GET /api/queue
+//Returns all queue entries across all services (staff/admin)
 function getQueue(req, res) {
-  // TODO P3: return store.queueEntries
+  return res.json(store.queueEntries)
 }
 
-// GET /api/queue/my
-// Returns the current user's active queue entry (status: waiting or almost-ready)
+//GET /api/queue/my
+//Returns the current user's active queue entry (status: waiting or almost-ready)
 function getUserQueue(req, res) {
-  // TODO P3: find entry where userId === req.user.id and status is waiting/almost-ready
+  const entry = store.queueEntries.find(
+    (e) =>
+      e.userId === req.user.id &&
+      (e.status === "waiting" || e.status === "almost-ready")
+  )
+
+  return res.json(entry || null)
 }
 
-// GET /api/queue/wait-time/:serviceId
-// Returns estimated wait time in minutes for a service
-// Formula: position * expectedDuration, capped at 180 min
+//GET /api/queue/wait-time/:serviceId
+//Returns estimated wait time in minutes for a service
+// = position * expectedDuration, capping at 180 min
 function getWaitTime(req, res) {
-  // TODO P3:
-  // 1. find service by req.params.serviceId, 404 if not found
-  // 2. count waiting entries for that service
-  // 3. waitTime = count * service.expectedDuration, cap at 180
-  // 4. return { serviceId, estimatedWaitMinutes }
+  const service = store.services.find(
+    (s) => s.id === req.params.serviceId
+  )
+  if (!service)  {
+    return res.status(404).json({ error: "Service not found" })
+  }
+
+  const count = store.queueEntries.filter(
+    (e) =>
+      e.serviceId === service.id &&
+      (e.status === "waiting" || e.status === "almost-ready")
+  ).length
+
+  let waitTime = count * service.expectedDuration
+  waitTime = Math.min(waitTime, 180)
+
+  return res.json({
+    serviceId: service.id,
+    estimatedWaitMinutes: waitTime,
+  })
 }
 
-// POST /api/queue/join
-// Body: { serviceId }
-// Adds current user to the queue for a service
+//POST /api/queue/join
+//Adds current user to the queue for a service
 function joinQueue(req, res) {
-  // TODO P3:
-  // 1. find service, 404 if not found, 400 if not open
-  // 2. check user not already in queue for this service → 400
-  // 3. calculate next position (max position in service + 1)
-  // 4. create entry, push to store.queueEntries
-  // 5. trigger notification: "You joined the queue for <service>"
+  const { serviceId } = req.body
+
+  const service = store.services.find((s) => s.id === serviceId)
+  if (!service) {
+    return res.status(404).json({ error: "Service not found" })
+  }
+  if (!service.isOpen) {
+    return res.status(400).json({ error: "Service is not open" })
+  }
+
+  const existing = store.queueEntries.find(
+    (e) => e.userId === req.user.id && e.serviceId === serviceId
+  )
+  if (existing) {
+    return res.status(400).json({ error: "Already in queue" })
+  }
+
+  const positions = store.queueEntries
+    .filter((e) => e.serviceId === serviceId)
+    .map((e) => e.position)
+
+  const nextPosition = positions.length ? Math.max(...positions) + 1 : 1
+
+  const entry = {
+    id: uuidv4(),
+    userId: req.user.id,
+    serviceId,
+    position: nextPosition,
+    status: "waiting",
+    joinedAt: new Date(),
+  }
+
+  store.queueEntries.push(entry)
+
+  notify(req.user.id, `You joined the queue for ${service.name}`)
+
+  return res.status(201).json(entry)
 }
 
-// DELETE /api/queue/leave/:serviceId
-// Removes current user from the queue and records history
+//DELETE /api/queue/leave/:serviceId
+//Removes current user from the queue and records history
 function leaveQueue(req, res) {
-  // TODO P3:
-  // 1. find user's entry for serviceId, 404 if not found
-  // 2. remove from store.queueEntries
-  // 3. shift positions of remaining entries down
-  // 4. push to store.history with status "left"
-  // 5. trigger notification: "You left the queue for <service>"
+  const { serviceId } = req.params
+
+  const index = store.queueEntries.findIndex(
+    (e) => e.userId === req.user.id && e.serviceId === serviceId
+  )
+
+  if (index === -1)
+    return res.status(404).json({ error: "Queue entry not found" })
+  const removed = store.queueEntries.splice(index, 1)[0]
+
+  // shift positions
+  store.queueEntries.forEach((e) => {
+    if (e.serviceId === serviceId && e.position > removed.position) {
+      e.position -= 1
+    }
+  })
+
+  store.history.push({
+    ...removed,
+    status: "left",
+    leftAt: new Date(),
+  })
+
+  notify(req.user.id, `You left the queue for ${serviceId}`)
+
+  return res.json({ message: "Left queue" })
 }
 
-// POST /api/queue/serve-next/:serviceId
-// Marks the position-1 entry as "served" and shifts queue up (staff/admin)
+//POST /api/queue/serve-next/:serviceId
+//Marks the position-1 entry as "served" and shifts queue up (staff/admin)
 function serveNext(req, res) {
-  // TODO P3:
-  // 1. find entry at position 1 for serviceId, 400 if queue empty
-  // 2. set status = "served", servedAt = now
-  // 3. remove from queueEntries, push to store.history with status "served"
-  // 4. shift remaining entries: position - 1
-  // 5. trigger notification to served user: "It's your turn!"
+  const { serviceId } = req.params
+
+  const entry = store.queueEntries.find(
+    (e) => e.serviceId === serviceId && e.position === 1
+  )
+
+  if (!entry) {
+    return res.status(400).json({ error: "Queue is empty" })
+  }
+  store.queueEntries = store.queueEntries.filter((e) => e.id !== entry.id)
+
+  entry.status = "served"
+  entry.servedAt = new Date()
+
+  store.history.push(entry)
+
+  store.queueEntries.forEach((e) => {
+    if (e.serviceId === serviceId) {
+      e.position -= 1
+    }
+  })
+
+  notify(entry.userId, "It's your turn!")
+
+  return res.json({ message: "Served next user", entry })
 }
 
-// PATCH /api/queue/status/:entryId
-// Body: { status }
-// Updates status of a specific entry (staff/admin)
+//PATCH /api/queue/status/:entryId
+//Updates status of a specific entry (staff/admin)
 function updateStatus(req, res) {
-  // TODO P3:
-  // 1. find entry by req.params.entryId, 404 if not found
-  // 2. validate status is one of: waiting, almost-ready, served, left
-  // 3. update entry status
-  // 4. if status is "almost-ready", trigger notification to user
+  const { entryId } = req.params
+  const { status } = req.body
+
+  const validStatuses = ["waiting", "almost-ready", "served", "left"]
+
+  if (!validStatuses.includes(status)) {
+    return res.status(400).json({ error: "Invalid status" })
+  }
+
+  const entry = store.queueEntries.find((e) => e.id === entryId)
+  if (!entry) {
+    return res.status(404).json({ error: "Entry not found" })
+  }
+  entry.status = status
+
+  if (status === "almost-ready") {
+    notify(entry.userId, "You are almost ready!")
+  }
+
+  return res.json(entry)
 }
 
-// PATCH /api/queue/reorder/:serviceId
-// Body: { entryId, direction } — direction: "up" | "down"
-// Swaps positions of two adjacent entries (staff/admin)
+//PATCH /api/queue/reorder/:serviceId
+//Swaps positions of two adjacent entries (staff/admin)
 function reorderQueue(req, res) {
-  // TODO P3:
-  // 1. find entry by entryId, 404 if not found
-  // 2. find swap target: position - 1 (up) or position + 1 (down)
-  // 3. if no swap target → 400 (already at top/bottom)
-  // 4. swap positions between the two entries
+  const { serviceId } = req.params
+  const { entryId, direction } = req.body
+
+  const entry = store.queueEntries.find((e) => e.id === entryId)
+  if (!entry) {
+    return res.status(404).json({ error: "Entry not found" })
+  }
+
+  const targetPosition =
+    direction === "up" ? entry.position - 1 : entry.position + 1
+
+  const swapTarget = store.queueEntries.find(
+    (e) =>
+      e.serviceId === serviceId && e.position === targetPosition
+  )
+
+  if (!swapTarget) {
+    return res.status(400).json({ error: "Cannot reorder" })
+  }
+
+  const temp = entry.position
+  entry.position = swapTarget.position
+  swapTarget.position = temp
+
+  return res.json({ message: "Reordered successfully" })
 }
 
-// DELETE /api/queue/remove/:entryId
-// Removes any entry from queue (staff/admin)
+//DELETE /api/queue/remove/:entryId
+//Removes any entry from queue (staff/admin)
 function removeEntry(req, res) {
-  // TODO P3:
-  // 1. find entry by req.params.entryId, 404 if not found
-  // 2. remove from store.queueEntries
-  // 3. shift positions of remaining entries in same service
+  const { entryId } = req.params
+
+  const index = store.queueEntries.findIndex((e) => e.id === entryId)
+  if (index === -1) {
+    return res.status(404).json({ error: "Entry not found" })
+  }
+
+  const removed = store.queueEntries.splice(index, 1)[0]
+
+  store.queueEntries.forEach((e) => {
+    if (
+      e.serviceId === removed.serviceId &&
+      e.position > removed.position
+    ) {
+      e.position -= 1
+    }
+  })
+
+  return res.json({ message: "Entry removed" })
 }
 
 module.exports = {
