@@ -2,15 +2,7 @@
 const { v4: uuidv4 } = require("uuid")
 const store = require("../data/store")
 
-//For mock
-function notify(userId, message) {
-  store.notifications.push({
-    id: uuidv4(),
-    userId,
-    message,
-    createdAt: new Date(),
-  })
-}
+const { createNotification } = require("./notificationController") 
 
 //GET /api/queue
 //Returns all queue entries across all services (staff/admin)
@@ -93,7 +85,11 @@ function joinQueue(req, res) {
 
   store.queueEntries.push(entry)
 
-  notify(req.user.id, `You joined the queue for ${service.name}`)
+  createNotification(
+    req.user.id,
+    "Joined Queue",
+    `You joined the queue for ${service.name}`
+  )
 
   return res.status(201).json(entry)
 }
@@ -124,13 +120,19 @@ function leaveQueue(req, res) {
     leftAt: new Date(),
   })
 
-  notify(req.user.id, `You left the queue for ${serviceId}`)
+  const service = store.services.find((s) => s.id === serviceId)
+
+  createNotification(
+    req.user.id,
+    "Left Queue",
+    `You left the queue for ${service?.name || serviceId}`
+  )
 
   return res.json({ message: "Left queue" })
 }
 
 //POST /api/queue/serve-next/:serviceId
-//Marks the position-1 entry as "served" and shifts queue up (staff/admin)
+//position-1 entry as "served" and shifts queue up (staff/admin)
 function serveNext(req, res) {
   const { serviceId } = req.params
 
@@ -154,13 +156,17 @@ function serveNext(req, res) {
     }
   })
 
-  notify(entry.userId, "It's your turn!")
+  createNotification(
+    entry.userId,
+    "Now Serving",
+    "It's your turn!"
+  )
 
   return res.json({ message: "Served next user", entry })
 }
 
 //PATCH /api/queue/status/:entryId
-//Updates status of a specific entry (staff/admin)
+//updates status of a specific entry (staff/admin)
 function updateStatus(req, res) {
   const { entryId } = req.params
   const { status } = req.body
@@ -178,14 +184,26 @@ function updateStatus(req, res) {
   entry.status = status
 
   if (status === "almost-ready") {
-    notify(entry.userId, "You are almost ready!")
+    createNotification(
+      entry.userId,
+      "Almost Ready",
+      "You are almost ready!"
+    )
+  }
+  
+  if (status === "served") {
+    createNotification(
+      entry.userId,
+      "Now Serving",
+      "You are now being served!"
+    )
   }
 
   return res.json(entry)
 }
 
 //PATCH /api/queue/reorder/:serviceId
-//Swaps positions of two adjacent entries (staff/admin)
+//swaps positions of two adjacent entries (staff/admin)
 function reorderQueue(req, res) {
   const { serviceId } = req.params
   const { entryId, direction } = req.body
