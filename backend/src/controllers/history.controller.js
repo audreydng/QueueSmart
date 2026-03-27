@@ -1,10 +1,19 @@
-// P4 - History Controller
 const store = require("../data/store")
 
-// GET /api/history
-// Returns queue participation history for the current user, sorted newest first
-function getHistory(req, res) {
-  // TODO P4: filter store.history by userId === req.user.id, sort by completedAt desc
+// See entire history (for staff/admin)
+function getHistory(_req, res) {
+  const sorted = [...store.history].sort(
+    (a, b) => new Date(b.servedAt || b.leftAt) - new Date(a.servedAt || a.leftAt)
+  )
+  return res.json(sorted)
 }
 
-module.exports = { getHistory }
+// See history entries for the current user
+function getUserHistory(req, res) {
+  const sorted = store.history
+    .filter((e) => e.userId === req.user.id)
+    .sort((a, b) => new Date(b.servedAt || b.leftAt) - new Date(a.servedAt || a.leftAt))
+  return res.json(sorted)
+}
+
+module.exports = { getHistory, getUserHistory }
