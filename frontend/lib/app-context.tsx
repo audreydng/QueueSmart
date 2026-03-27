@@ -1,6 +1,7 @@
 "use client"
 
-import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from "react"
+import React, { createContext, useContext, useState, useCallback, useEffect } from "react"
+import { api } from "@/lib/api"
 import type {
   User,
   Service,
@@ -8,95 +9,10 @@ import type {
   Notification,
   HistoryEntry,
   QueueStatus,
-  PriorityLevel,
   Appointment,
 } from "@/lib/types"
 
-// Seed data - services: General Checkup, Vaccination, Blood Test, Consultation
-const INITIAL_SERVICES: Service[] = [
-  {
-    id: "svc-1",
-    name: "General Checkup",
-    description: "Routine health check and basic consultation.",
-    expectedDuration: 15,
-    priority: "low",
-    isOpen: true,
-    createdAt: new Date(Date.now() - 7 * 86400000).toISOString(),
-  },
-  {
-    id: "svc-2",
-    name: "Vaccination",
-    description: "Immunization and vaccine administration service.",
-    expectedDuration: 30,
-    priority: "medium",
-    isOpen: true,
-    createdAt: new Date(Date.now() - 5 * 86400000).toISOString(),
-  },
-  {
-    id: "svc-3",
-    name: "Blood Test",
-    description: "Sample collection and lab test screening.",
-    expectedDuration: 20,
-    priority: "high",
-    isOpen: true,
-    createdAt: new Date(Date.now() - 3 * 86400000).toISOString(),
-  },
-  {
-    id: "svc-4",
-    name: "Consultation",
-    description: "Doctor consultation for symptoms and treatment planning.",
-    expectedDuration: 25,
-    priority: "medium",
-    isOpen: true,
-    createdAt: new Date(Date.now() - 2 * 86400000).toISOString(),
-  },
-]
-
-const INITIAL_QUEUE_ENTRIES: QueueEntry[] = [
-  {
-    id: "qe-1",
-    userId: "user-seed-1",
-    serviceId: "svc-1",
-    position: 1,
-    status: "waiting",
-    joinedAt: new Date(Date.now() - 3600000).toISOString(),
-  },
-  {
-    id: "qe-2",
-    userId: "user-seed-2",
-    serviceId: "svc-1",
-    position: 2,
-    status: "waiting",
-    joinedAt: new Date(Date.now() - 1800000).toISOString(),
-  },
-  {
-    id: "qe-3",
-    userId: "user-seed-3",
-    serviceId: "svc-2",
-    position: 1,
-    status: "almost-ready",
-    joinedAt: new Date(Date.now() - 7200000).toISOString(),
-  },
-  {
-    id: "qe-4",
-    userId: "user-seed-4",
-    serviceId: "svc-3",
-    position: 1,
-    status: "waiting",
-    joinedAt: new Date(Date.now() - 900000).toISOString(),
-  },
-]
-
-const SEED_USERS: User[] = [
-  { id: "user-seed-1", email: "alice@example.com", name: "Alice Johnson", role: "user", password: "password123", createdAt: new Date().toISOString() },
-  { id: "user-seed-2", email: "bob@example.com", name: "Bob Smith", role: "user", password: "password123", createdAt: new Date().toISOString() },
-  { id: "user-seed-3", email: "charlie@example.com", name: "Charlie Lee", role: "user", password: "password123", createdAt: new Date().toISOString() },
-  { id: "user-seed-4", email: "dana@example.com", name: "Dana White", role: "user", password: "password123", createdAt: new Date().toISOString() },
-  { id: "staff-seed-1", email: "staff@example.com", name: "Staff User", role: "staff", serviceId: "svc-1", password: "staff123", createdAt: new Date().toISOString() },
-  { id: "admin-seed-1", email: "admin@example.com", name: "Administrator", role: "administrator", password: "admin123", createdAt: new Date().toISOString() },
-]
-
-interface AppState {
+interface AppContextType {
   currentUser: User | null
   users: User[]
   services: Service[]
@@ -104,25 +20,20 @@ interface AppState {
   notifications: Notification[]
   history: HistoryEntry[]
   appointments: Appointment[]
-}
-
-interface AppContextType extends AppState {
-  login: (email: string, password: string) => { success: boolean; error?: string }
-  register: (email: string, password: string, name: string, role: "user" | "staff" | "administrator") => { success: boolean; error?: string }
-  createStaffMember: (payload: { name: string; email: string; password: string; serviceId: string }) => { success: boolean; error?: string }
-  removeStaffMember: (userId: string) => { success: boolean; error?: string }
+  login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>
+  register: (email: string, password: string, name: string, role: "user" | "staff" | "administrator") => Promise<{ success: boolean; error?: string }>
   logout: () => void
-  joinQueue: (serviceId: string) => void
-  leaveQueue: (entryId: string) => void
-  createService: (service: Omit<Service, "id" | "createdAt" | "isOpen">) => void
-  updateService: (id: string, updates: Partial<Service>) => void
-  toggleServiceOpen: (id: string) => void
-  serveNextUser: (serviceId: string) => void
-  setQueueEntryStatus: (entryId: string, status: QueueStatus) => void
-  removeFromQueue: (entryId: string) => void
-  reorderQueue: (serviceId: string, entryId: string, direction: "up" | "down") => void
-  markNotificationRead: (notificationId: string) => void
-  markAllNotificationsRead: () => void
+  joinQueue: (serviceId: string) => Promise<void>
+  leaveQueue: (entryId: string) => Promise<void>
+  createService: (service: Omit<Service, "id" | "createdAt" | "isOpen">) => Promise<void>
+  updateService: (id: string, updates: Partial<Service>) => Promise<void>
+  toggleServiceOpen: (id: string) => Promise<void>
+  serveNextUser: (serviceId: string) => Promise<void>
+  setQueueEntryStatus: (entryId: string, status: QueueStatus) => Promise<void>
+  removeFromQueue: (entryId: string) => Promise<void>
+  reorderQueue: (serviceId: string, entryId: string, direction: "up" | "down") => Promise<void>
+  markNotificationRead: (notificationId: string) => Promise<void>
+  markAllNotificationsRead: () => Promise<void>
   bookAppointment: (serviceId: string, date: string, time: string) => void
   cancelAppointment: (appointmentId: string) => void
   getUserAppointments: () => Appointment[]
@@ -131,6 +42,8 @@ interface AppContextType extends AppState {
   getServiceById: (id: string) => Service | undefined
   getUnreadNotificationCount: () => number
   getUserNameById: (id: string) => string
+  createStaffMember: (payload: { name: string; email: string; password: string; serviceId: string }) => { success: boolean; error?: string }
+  removeStaffMember: (userId: string) => { success: boolean; error?: string }
 }
 
 const AppContext = createContext<AppContextType | null>(null)
@@ -145,86 +58,249 @@ function generateId() {
   return Math.random().toString(36).slice(2, 11)
 }
 
+function normalizeHistoryEntry(entry: Record<string, unknown>, services: Service[]): HistoryEntry {
+  const service = services.find((s) => s.id === entry.serviceId)
+  return {
+    id: entry.id as string,
+    userId: entry.userId as string,
+    serviceId: entry.serviceId as string,
+    serviceName: (entry.serviceName as string | undefined) ?? service?.name ?? "Unknown",
+    status: entry.status as QueueStatus,
+    joinedAt: entry.joinedAt as string,
+    completedAt: ((entry.servedAt ?? entry.leftAt ?? entry.completedAt) as string | undefined) ?? "",
+  }
+}
+
 export function AppProvider({ children }: { children: React.ReactNode }) {
-  const mountedRef = useRef(false)
   const [currentUser, setCurrentUser] = useState<User | null>(null)
-  const [users, setUsers] = useState<User[]>(SEED_USERS)
-  const [services, setServices] = useState<Service[]>(INITIAL_SERVICES)
-  const [queueEntries, setQueueEntries] = useState<QueueEntry[]>(INITIAL_QUEUE_ENTRIES)
+  const [users, setUsers] = useState<User[]>([])
+  const [services, setServices] = useState<Service[]>([])
+  const [queueEntries, setQueueEntries] = useState<QueueEntry[]>([])
   const [notifications, setNotifications] = useState<Notification[]>([])
-  const [history, setHistory] = useState<HistoryEntry[]>([
-    {
-      id: "hist-1",
-      userId: "user-seed-1",
-      serviceId: "svc-2",
-      serviceName: "Vaccination",
-      status: "served",
-      joinedAt: new Date(Date.now() - 86400000 * 2).toISOString(),
-      completedAt: new Date(Date.now() - 86400000 * 2 + 1800000).toISOString(),
-    },
-  ])
+  const [history, setHistory] = useState<HistoryEntry[]>([])
+  const [appointments, setAppointments] = useState<Appointment[]>([])
 
-  const [appointments, setAppointments] = useState<Appointment[]>([
-    {
-      id: "apt-1",
-      userId: "user-seed-1",
-      serviceId: "svc-2",
-      date: new Date(Date.now() + 86400000 * 3).toISOString().split("T")[0],
-      time: "14:00",
-      duration: 30,
-      status: "upcoming",
-      createdAt: new Date(Date.now() - 86400000).toISOString(),
-    },
-  ])
+  // ─── Data fetching helpers ────────────────────────────────────────────────
 
-  const addNotification = useCallback((userId: string, title: string, message: string) => {
-    setNotifications((prev) => [
-      {
-        id: `notif-${generateId()}`,
-        userId,
-        title,
-        message,
-        read: false,
-        createdAt: new Date().toISOString(),
-      },
-      ...prev,
-    ])
+  const fetchServices = useCallback(async (): Promise<Service[]> => {
+    try {
+      const data = await api.services.getAll() as Service[]
+      setServices(data)
+      return data
+    } catch {
+      return []
+    }
   }, [])
 
-  const login = useCallback(
-    (email: string, password: string) => {
-      const user = users.find((u) => u.email === email)
-      if (!user) return { success: false, error: "Invalid email or password." }
-      if (user.password && user.password !== password) return { success: false, error: "Invalid email or password." }
-      setCurrentUser(user)
-      return { success: true }
-    },
-    [users]
-  )
+  const fetchQueue = useCallback(async (user: User) => {
+    try {
+      if (user.role === "staff" || user.role === "administrator") {
+        const data = await api.queue.getAll() as QueueEntry[]
+        setQueueEntries(data)
+      } else {
+        const entry = await api.queue.getMy() as QueueEntry | null
+        setQueueEntries(entry ? [entry] : [])
+      }
+    } catch { /* ignore */ }
+  }, [])
 
-  const register = useCallback(
-    (email: string, password: string, name: string, role: "user" | "staff" | "administrator") => {
-      if (users.some((u) => u.email === email)) {
-        return { success: false, error: "Email already registered." }
-      }
-      const newUser: User = {
-        id: `user-${generateId()}`,
-        email,
-        name,
-        role,
-        password,
-        createdAt: new Date().toISOString(),
-      }
-      setUsers((prev) => [...prev, newUser])
-      setCurrentUser(newUser)
+  const fetchNotifications = useCallback(async () => {
+    try {
+      const data = await api.notifications.getAll() as Notification[]
+      setNotifications(data)
+    } catch { /* ignore */ }
+  }, [])
+
+  const fetchHistory = useCallback(async (user: User, svcs: Service[]) => {
+    try {
+      const raw = user.role === "staff" || user.role === "administrator"
+        ? await api.history.getAll()
+        : await api.history.getMy()
+      setHistory((raw as Record<string, unknown>[]).map((e) => normalizeHistoryEntry(e, svcs)))
+    } catch { /* ignore */ }
+  }, [])
+
+  const refreshAll = useCallback(async (user: User, svcs: Service[]) => {
+    await Promise.all([fetchQueue(user), fetchNotifications(), fetchHistory(user, svcs)])
+  }, [fetchQueue, fetchNotifications, fetchHistory])
+
+  // ─── On mount: restore session ────────────────────────────────────────────
+
+  useEffect(() => {
+    if (typeof window === "undefined") return
+    const storedUser = localStorage.getItem("user")
+    if (!storedUser) return
+    try {
+      const user = JSON.parse(storedUser) as User
+      setCurrentUser(user)
+      fetchServices().then((svcs: Service[]) => refreshAll(user, svcs))
+    } catch { /* ignore */ }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // ─── Auth ─────────────────────────────────────────────────────────────────
+
+  const login = useCallback(async (email: string, password: string) => {
+    try {
+      const res = await api.auth.login(email, password)
+      const token = res.token
+      const user = res.user as unknown as User
+      localStorage.setItem("token", token)
+      localStorage.setItem("user", JSON.stringify(user))
+      setCurrentUser(user)
+      const svcs = await fetchServices()
+      await refreshAll(user, svcs)
       return { success: true }
-    },
-    [users]
-  )
+    } catch (err) {
+      return { success: false, error: (err as Error).message }
+    }
+  }, [fetchServices, refreshAll])
+
+  const register = useCallback(async (
+    email: string,
+    password: string,
+    name: string,
+    role: "user" | "staff" | "administrator"
+  ) => {
+    try {
+      await api.auth.register(email, password, name, role)
+      return await login(email, password)
+    } catch (err) {
+      return { success: false, error: (err as Error).message }
+    }
+  }, [login])
+
+  const logout = useCallback(() => {
+    localStorage.removeItem("token")
+    localStorage.removeItem("user")
+    setCurrentUser(null)
+    setQueueEntries([])
+    setNotifications([])
+    setHistory([])
+    setAppointments([])
+  }, [])
+
+  // ─── Queue ────────────────────────────────────────────────────────────────
+
+  const joinQueue = useCallback(async (serviceId: string) => {
+    if (!currentUser) return
+    await api.queue.join(serviceId)
+    await fetchQueue(currentUser)
+    await fetchNotifications()
+  }, [currentUser, fetchQueue, fetchNotifications])
+
+  const leaveQueue = useCallback(async (entryId: string) => {
+    if (!currentUser) return
+    const entry = queueEntries.find((e: QueueEntry) => e.id === entryId)
+    if (!entry) return
+    await api.queue.leave(entry.serviceId)
+    await fetchQueue(currentUser)
+    await fetchHistory(currentUser, services)
+    await fetchNotifications()
+  }, [currentUser, queueEntries, services, fetchQueue, fetchHistory, fetchNotifications])
+
+  const serveNextUser = useCallback(async (serviceId: string) => {
+    if (!currentUser) return
+    await api.queue.serveNext(serviceId)
+    await refreshAll(currentUser, services)
+  }, [currentUser, services, refreshAll])
+
+  const setQueueEntryStatus = useCallback(async (entryId: string, status: QueueStatus) => {
+    if (!currentUser) return
+    if (status === "left") {
+      await api.queue.remove(entryId)
+    } else {
+      await api.queue.updateStatus(entryId, status)
+    }
+    await fetchQueue(currentUser)
+    await fetchNotifications()
+  }, [currentUser, fetchQueue, fetchNotifications])
+
+  const removeFromQueue = useCallback(async (entryId: string) => {
+    if (!currentUser) return
+    await api.queue.remove(entryId)
+    await fetchQueue(currentUser)
+  }, [currentUser, fetchQueue])
+
+  const reorderQueue = useCallback(async (
+    serviceId: string,
+    entryId: string,
+    direction: "up" | "down"
+  ) => {
+    if (!currentUser) return
+    await api.queue.reorder(serviceId, entryId, direction)
+    await fetchQueue(currentUser)
+  }, [currentUser, fetchQueue])
+
+  // ─── Services ─────────────────────────────────────────────────────────────
+
+  const createService = useCallback(async (service: Omit<Service, "id" | "createdAt" | "isOpen">) => {
+    await api.services.create(service)
+    await fetchServices()
+  }, [fetchServices])
+
+  const updateService = useCallback(async (id: string, updates: Partial<Service>) => {
+    await api.services.update(id, updates)
+    await fetchServices()
+  }, [fetchServices])
+
+  const toggleServiceOpen = useCallback(async (id: string) => {
+    await api.services.toggle(id)
+    await fetchServices()
+  }, [fetchServices])
+
+  // ─── Notifications ────────────────────────────────────────────────────────
+
+  const markNotificationRead = useCallback(async (notificationId: string) => {
+    await api.notifications.markRead(notificationId)
+    await fetchNotifications()
+  }, [fetchNotifications])
+
+  const markAllNotificationsRead = useCallback(async () => {
+    await api.notifications.markAllRead()
+    await fetchNotifications()
+  }, [fetchNotifications])
+
+  // ─── Appointments (local only — no backend) ───────────────────────────────
+
+  const bookAppointment = useCallback((serviceId: string, date: string, time: string) => {
+    if (!currentUser) return
+    const service = services.find((s: Service) => s.id === serviceId)
+    setAppointments((prev: Appointment[]) => [
+      ...prev,
+      {
+        id: `apt-${generateId()}`,
+        userId: currentUser.id,
+        serviceId,
+        date,
+        time,
+        duration: service?.expectedDuration ?? 30,
+        status: "upcoming" as const,
+        createdAt: new Date().toISOString(),
+      },
+    ])
+  }, [currentUser, services])
+
+  const cancelAppointment = useCallback((appointmentId: string) => {
+    setAppointments((prev: Appointment[]) =>
+      prev.map((a: Appointment) => (a.id === appointmentId ? { ...a, status: "cancelled" as const } : a))
+    )
+  }, [])
+
+  const getUserAppointments = useCallback(() => {
+    if (!currentUser) return []
+    return appointments
+      .filter((a: Appointment) => a.userId === currentUser.id)
+      .sort((a: Appointment, b: Appointment) =>
+        a.date.localeCompare(b.date) || a.time.localeCompare(b.time)
+      )
+  }, [currentUser, appointments])
+
+  // ─── Staff management (local only — no backend) ───────────────────────────
 
   const createStaffMember = useCallback(
     ({ name, email, password, serviceId }: { name: string; email: string; password: string; serviceId: string }) => {
-      if (users.some((u) => u.email.toLowerCase() === email.toLowerCase())) {
+      if (users.some((u: User) => u.email.toLowerCase() === email.toLowerCase())) {
         return { success: false, error: "Email already registered." }
       }
       const newStaff: User = {
@@ -236,7 +312,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         serviceId,
         createdAt: new Date().toISOString(),
       }
-      setUsers((prev) => [...prev, newStaff])
+      setUsers((prev: User[]) => [...prev, newStaff])
       return { success: true }
     },
     [users]
@@ -244,386 +320,53 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const removeStaffMember = useCallback(
     (userId: string) => {
-      const target = users.find((u) => u.id === userId)
+      const target = users.find((u: User) => u.id === userId)
       if (!target || target.role !== "staff") {
         return { success: false, error: "Staff member not found." }
       }
       if (currentUser?.id === userId) {
         return { success: false, error: "You cannot remove your own account." }
       }
-      setUsers((prev) => prev.filter((u) => u.id !== userId))
+      setUsers((prev: User[]) => prev.filter((u: User) => u.id !== userId))
       return { success: true }
     },
     [users, currentUser]
   )
 
-  const logout = useCallback(() => {
-    setCurrentUser(null)
-  }, [])
-
-  const joinQueue = useCallback(
-    (serviceId: string) => {
-      if (!currentUser) return
-      const existing = queueEntries.find(
-        (e) => e.userId === currentUser.id && e.serviceId === serviceId && (e.status === "waiting" || e.status === "almost-ready")
-      )
-      if (existing) return
-
-      const serviceQueue = queueEntries.filter(
-        (e) => e.serviceId === serviceId && (e.status === "waiting" || e.status === "almost-ready")
-      )
-      const newEntry: QueueEntry = {
-        id: `qe-${generateId()}`,
-        userId: currentUser.id,
-        serviceId,
-        position: serviceQueue.length + 1,
-        status: "waiting",
-        joinedAt: new Date().toISOString(),
-      }
-      setQueueEntries((prev) => [...prev, newEntry])
-
-      const service = services.find((s) => s.id === serviceId)
-      addNotification(
-        currentUser.id,
-        "Joined Queue",
-        `You joined the queue for ${service ? service.name : "a service"}. Your position is #${newEntry.position}.`
-      )
-    },
-    [currentUser, queueEntries, services, addNotification]
-  )
-
-  const leaveQueue = useCallback(
-    (entryId: string) => {
-      if (!currentUser) return
-      const entry = queueEntries.find((e) => e.id === entryId)
-      if (!entry) return
-
-      setQueueEntries((prev) => {
-        const remaining = prev.filter((e) => e.id !== entryId)
-        // Reorder positions
-        const serviceQueue = remaining
-          .filter((e) => e.serviceId === entry.serviceId && (e.status === "waiting" || e.status === "almost-ready"))
-          .sort((a, b) => a.position - b.position)
-          .map((e, i) => ({ ...e, position: i + 1 }))
-
-        return remaining.map((e) => {
-          const updated = serviceQueue.find((sq) => sq.id === e.id)
-          return updated ?? e
-        })
-      })
-
-      const service = services.find((s) => s.id === entry.serviceId)
-      setHistory((prev) => [
-        {
-          id: `hist-${generateId()}`,
-          userId: currentUser.id,
-          serviceId: entry.serviceId,
-          serviceName: service ? service.name : "Unknown",
-          status: "left",
-          joinedAt: entry.joinedAt,
-          completedAt: new Date().toISOString(),
-        },
-        ...prev,
-      ])
-
-      addNotification(currentUser.id, "Left Queue", `You left the queue for ${service ? service.name : "a service"}.`)
-    },
-    [currentUser, queueEntries, services, addNotification]
-  )
-
-  const createService = useCallback(
-    (service: Omit<Service, "id" | "createdAt" | "isOpen">) => {
-      setServices((prev) => [
-        ...prev,
-        { ...service, id: `svc-${generateId()}`, isOpen: true, createdAt: new Date().toISOString() },
-      ])
-    },
-    []
-  )
-
-  const updateService = useCallback((id: string, updates: Partial<Service>) => {
-    setServices((prev) => prev.map((s) => (s.id === id ? { ...s, ...updates } : s)))
-  }, [])
-
-  const toggleServiceOpen = useCallback((id: string) => {
-    setServices((prev) => prev.map((s) => (s.id === id ? { ...s, isOpen: !s.isOpen } : s)))
-  }, [])
-
-  const serveNextUser = useCallback(
-    (serviceId: string) => {
-      const serviceQueue = queueEntries
-        .filter((e) => e.serviceId === serviceId && (e.status === "waiting" || e.status === "almost-ready"))
-        .sort((a, b) => a.position - b.position)
-
-      if (serviceQueue.length === 0) return
-      const nextEntry = serviceQueue[0]
-      const service = services.find((s) => s.id === serviceId)
-
-      setQueueEntries((prev) => {
-        const updated = prev.map((e) => {
-          if (e.id === nextEntry.id) return { ...e, status: "served" as QueueStatus, servedAt: new Date().toISOString() }
-          return e
-        })
-        // Reorder remaining
-        const remaining = updated
-          .filter((e) => e.serviceId === serviceId && (e.status === "waiting" || e.status === "almost-ready"))
-          .sort((a, b) => a.position - b.position)
-
-        return updated.map((e) => {
-          const idx = remaining.findIndex((r) => r.id === e.id)
-          if (idx !== -1) return { ...e, position: idx + 1, status: idx === 0 ? ("almost-ready" as QueueStatus) : e.status }
-          return e.id === nextEntry.id ? { ...e, status: "served" as QueueStatus, servedAt: new Date().toISOString() } : e
-        })
-      })
-
-      setHistory((prev) => [
-        {
-          id: `hist-${generateId()}`,
-          userId: nextEntry.userId,
-          serviceId,
-          serviceName: service ? service.name : "Unknown",
-          status: "served",
-          joinedAt: nextEntry.joinedAt,
-          completedAt: new Date().toISOString(),
-        },
-        ...prev,
-      ])
-
-      addNotification(nextEntry.userId, "You Were Served", `You have been served for ${service ? service.name : "a service"}.`)
-
-      // Notify the next person they're almost ready
-      const remainingAfter = queueEntries
-        .filter((e) => e.serviceId === serviceId && e.id !== nextEntry.id && (e.status === "waiting" || e.status === "almost-ready"))
-        .sort((a, b) => a.position - b.position)
-
-      if (remainingAfter.length > 0) {
-        addNotification(
-          remainingAfter[0].userId,
-          "Almost Ready",
-          `You are next in line for ${service ? service.name : "a service"}!`
-        )
-      }
-    },
-    [queueEntries, services, addNotification]
-  )
-
-  const setQueueEntryStatus = useCallback(
-    (entryId: string, status: QueueStatus) => {
-      const entry = queueEntries.find((e) => e.id === entryId)
-      if (!entry) return
-
-      const service = services.find((s) => s.id === entry.serviceId)
-
-      if (status === "left") {
-        setQueueEntries((prev) => {
-          const remaining = prev.filter((e) => e.id !== entryId)
-          const serviceQueue = remaining
-            .filter((e) => e.serviceId === entry.serviceId && (e.status === "waiting" || e.status === "almost-ready"))
-            .sort((a, b) => a.position - b.position)
-            .map((e, i) => ({ ...e, position: i + 1 }))
-          return remaining.map((e) => {
-            const updated = serviceQueue.find((sq) => sq.id === e.id)
-            return updated ?? e
-          })
-        })
-        setHistory((prev) => [
-          {
-            id: `hist-${generateId()}`,
-            userId: entry.userId,
-            serviceId: entry.serviceId,
-            serviceName: service ? service.name : "Unknown",
-            status: "left",
-            joinedAt: entry.joinedAt,
-            completedAt: new Date().toISOString(),
-          },
-          ...prev,
-        ])
-        addNotification(entry.userId, "Left Queue", "You were removed from the queue.")
-        return
-      }
-
-      setQueueEntries((prev) =>
-        prev.map((e) =>
-          e.id === entryId
-            ? { ...e, status, servedAt: status === "served" ? new Date().toISOString() : e.servedAt }
-            : e
-        )
-      )
-
-      if (status === "served") {
-        setHistory((prev) => [
-          {
-            id: `hist-${generateId()}`,
-            userId: entry.userId,
-            serviceId: entry.serviceId,
-            serviceName: service ? service.name : "Unknown",
-            status: "served",
-            joinedAt: entry.joinedAt,
-            completedAt: new Date().toISOString(),
-          },
-          ...prev,
-        ])
-        addNotification(entry.userId, "You Were Served", `You have been served.`)
-      }
-    },
-    [queueEntries, services, addNotification]
-  )
-
-  const removeFromQueue = useCallback(
-    (entryId: string) => {
-      const entry = queueEntries.find((e) => e.id === entryId)
-      if (!entry) return
-
-      setQueueEntries((prev) => {
-        const remaining = prev.filter((e) => e.id !== entryId)
-        const serviceQueue = remaining
-          .filter((e) => e.serviceId === entry.serviceId && (e.status === "waiting" || e.status === "almost-ready"))
-          .sort((a, b) => a.position - b.position)
-          .map((e, i) => ({ ...e, position: i + 1 }))
-        return remaining.map((e) => {
-          const updated = serviceQueue.find((sq) => sq.id === e.id)
-          return updated ?? e
-        })
-      })
-
-      addNotification(entry.userId, "Removed from Queue", "An administrator removed you from the queue.")
-    },
-    [queueEntries, addNotification]
-  )
-
-  const reorderQueue = useCallback(
-    (serviceId: string, entryId: string, direction: "up" | "down") => {
-      setQueueEntries((prev) => {
-        const serviceQueue = prev
-          .filter((e) => e.serviceId === serviceId && (e.status === "waiting" || e.status === "almost-ready"))
-          .sort((a, b) => a.position - b.position)
-
-        const idx = serviceQueue.findIndex((e) => e.id === entryId)
-        if (idx === -1) return prev
-        if (direction === "up" && idx === 0) return prev
-        if (direction === "down" && idx === serviceQueue.length - 1) return prev
-
-        const swapIdx = direction === "up" ? idx - 1 : idx + 1
-        const temp = serviceQueue[idx]
-        serviceQueue[idx] = serviceQueue[swapIdx]
-        serviceQueue[swapIdx] = temp
-
-        const reordered = serviceQueue.map((e, i) => ({ ...e, position: i + 1 }))
-        return prev.map((e) => {
-          const updated = reordered.find((r) => r.id === e.id)
-          return updated ?? e
-        })
-      })
-    },
-    []
-  )
-
-  const bookAppointment = useCallback(
-    (serviceId: string, date: string, time: string) => {
-      if (!currentUser) return
-      const service = services.find((s) => s.id === serviceId)
-      const newAppointment: Appointment = {
-        id: `apt-${generateId()}`,
-        userId: currentUser.id,
-        serviceId,
-        date,
-        time,
-        duration: service?.expectedDuration ?? 30,
-        status: "upcoming",
-        createdAt: new Date().toISOString(),
-      }
-      setAppointments((prev) => [...prev, newAppointment])
-      addNotification(
-        currentUser.id,
-        "Appointment Booked",
-        `Your appointment for ${service ? service.name : "a service"} on ${date} at ${time} has been confirmed.`
-      )
-    },
-    [currentUser, services, addNotification]
-  )
-
-  const cancelAppointment = useCallback(
-    (appointmentId: string) => {
-      if (!currentUser) return
-      setAppointments((prev) =>
-        prev.map((a) => (a.id === appointmentId ? { ...a, status: "cancelled" as const } : a))
-      )
-      addNotification(currentUser.id, "Appointment Cancelled", "Your appointment has been cancelled.")
-    },
-    [currentUser, addNotification]
-  )
-
-  const getUserAppointments = useCallback(() => {
-    if (!currentUser) return []
-    return appointments.filter((a) => a.userId === currentUser.id).sort((a, b) => {
-      if (a.date !== b.date) return a.date.localeCompare(b.date)
-      return a.time.localeCompare(b.time)
-    })
-  }, [currentUser, appointments])
-
-  const markNotificationRead = useCallback((notificationId: string) => {
-    setNotifications((prev) => prev.map((n) => (n.id === notificationId ? { ...n, read: true } : n)))
-  }, [])
-
-  const markAllNotificationsRead = useCallback(() => {
-    if (!currentUser) return
-    setNotifications((prev) =>
-      prev.map((n) => (n.userId === currentUser.id ? { ...n, read: true } : n))
-    )
-  }, [currentUser])
+  // ─── Helpers ──────────────────────────────────────────────────────────────
 
   const getQueueForService = useCallback(
     (serviceId: string) =>
       queueEntries
-        .filter((e) => e.serviceId === serviceId && (e.status === "waiting" || e.status === "almost-ready"))
-        .sort((a, b) => a.position - b.position),
+        .filter((e: QueueEntry) => e.serviceId === serviceId && (e.status === "waiting" || e.status === "almost-ready"))
+        .sort((a: QueueEntry, b: QueueEntry) => a.position - b.position),
     [queueEntries]
   )
 
   const getUserQueueEntry = useCallback(() => {
     if (!currentUser) return undefined
     return queueEntries.find(
-      (e) => e.userId === currentUser.id && (e.status === "waiting" || e.status === "almost-ready")
+      (e: QueueEntry) => e.userId === currentUser.id && (e.status === "waiting" || e.status === "almost-ready")
     )
   }, [currentUser, queueEntries])
 
-  const getServiceById = useCallback((id: string) => services.find((s) => s.id === id), [services])
+  const getServiceById = useCallback(
+    (id: string) => services.find((s: Service) => s.id === id),
+    [services]
+  )
 
   const getUnreadNotificationCount = useCallback(() => {
     if (!currentUser) return 0
-    return notifications.filter((n) => n.userId === currentUser.id && !n.read).length
+    return notifications.filter((n: Notification) => n.userId === currentUser.id && !n.read).length
   }, [currentUser, notifications])
 
   const getUserNameById = useCallback(
     (id: string) => {
-      const user = users.find((u) => u.id === id)
+      const user = users.find((u: User) => u.id === id)
       return user?.name ?? "Unknown User"
     },
     [users]
   )
-
-  // Mark as mounted
-  useEffect(() => {
-    mountedRef.current = true
-    return () => { mountedRef.current = false }
-  }, [])
-
-  // Simulate queue status updates for current user
-  useEffect(() => {
-    if (!currentUser) return
-    const interval = setInterval(() => {
-      if (!mountedRef.current) return
-      setQueueEntries((prev) =>
-        prev.map((e) => {
-          if (e.userId === currentUser.id && e.status === "waiting" && e.position === 1) {
-            return { ...e, status: "almost-ready" as QueueStatus }
-          }
-          return e
-        })
-      )
-    }, 10000)
-    return () => clearInterval(interval)
-  }, [currentUser])
 
   return (
     <AppContext.Provider
@@ -637,8 +380,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         appointments,
         login,
         register,
-        createStaffMember,
-        removeStaffMember,
         logout,
         joinQueue,
         leaveQueue,
@@ -659,6 +400,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         getServiceById,
         getUnreadNotificationCount,
         getUserNameById,
+        createStaffMember,
+        removeStaffMember,
       }}
     >
       {children}

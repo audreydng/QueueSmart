@@ -2,7 +2,7 @@
 const { v4: uuidv4 } = require("uuid")
 const store = require("../data/store")
 
-const { createNotification } = require("./notificationController") 
+const { createNotification } = require("./notifications.controller")
 
 //GET /api/queue
 //Returns all queue entries across all services (staff/admin)

@@ -23,7 +23,7 @@ export function LoginForm({ onSwitchToRegister }: { onSwitchToRegister: () => vo
     return newErrors
   }
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     const validationErrors = validate()
     if (Object.keys(validationErrors).length > 0) {
@@ -31,7 +31,7 @@ export function LoginForm({ onSwitchToRegister }: { onSwitchToRegister: () => vo
       return
     }
     setErrors({})
-    const result = login(email, password)
+    const result = await login(email, password)
     if (!result.success) {
       setErrors({ general: result.error })
     }
@@ -140,7 +140,7 @@ export function RegisterForm({ onSwitchToLogin }: { onSwitchToLogin: () => void 
     return newErrors
   }
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     const validationErrors = validate()
     if (Object.keys(validationErrors).length > 0) {
@@ -148,7 +148,7 @@ export function RegisterForm({ onSwitchToLogin }: { onSwitchToLogin: () => void 
       return
     }
     setErrors({})
-    const result = register(email, password, name, role)
+    const result = await register(email, password, name, role)
     if (!result.success) {
       setErrors({ general: result.error })
     }
