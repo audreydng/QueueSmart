@@ -1,76 +1,49 @@
-const { v4: uuidv4 } = require("uuid")
-const store = require("../data/store")
+const db = require("../db/database")
 
-// Helper used by other controllers (queue.controller.js) to trigger notifications
-// Call: createNotification(userId, title, message)
-function createNotification(userId, title, message) {
-  const notification = {
-    id: uuidv4(),
-    userId,
-    title,
-    message,
-    read: false,
-    createdAt: new Date().toISOString(),
-  }
-
-  if (!Array.isArray(store.notifications)) {
-    store.notifications = []
-  }
-
-  store.notifications.push(notification)
-  return notification
+async function createNotification(userId, title, message) {
+  const result = await db.query(
+    "INSERT INTO notifications (user_id, title, message) VALUES ($1, $2, $3) RETURNING *",
+    [userId, title, message]
+  )
+  return result.rows[0]
 }
 
-// GET /api/notifications
-// Returns all notifications for the current user, sorted newest first
-function getNotifications(req, res) {
-  const userId = req.user && req.user.id
-  if (!userId) {
-    return res.status(401).json({ message: "Unauthorized" })
+async function getNotifications(req, res) {
+  const result = await db.query(
+    "SELECT * FROM notifications WHERE user_id = $1 ORDER BY created_at DESC",
+    [req.user.id]
+  )
+  return res.json(result.rows.map(normalizeNotification))
+}
+
+async function markRead(req, res) {
+  const result = await db.query(
+    "UPDATE notifications SET read = true WHERE id = $1 AND user_id = $2 RETURNING *",
+    [req.params.id, req.user.id]
+  )
+  if (result.rows.length === 0) {
+    return res.status(404).json({ message: "Notification not found" })
   }
-
-  const all = Array.isArray(store.notifications) ? store.notifications : []
-  const filtered = all
-    .filter((n) => n.userId === userId)
-    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
-
-  return res.json(filtered)
+  return res.json(normalizeNotification(result.rows[0]))
 }
 
-// PATCH /api/notifications/:id/read
-// Marks a single notification as read
-function markRead(req, res) {
-  const id = req.params.id
-  const userId = req.user && req.user.id
-
-  if (!userId) return res.status(401).json({ message: "Unauthorized" })
-
-  const all = Array.isArray(store.notifications) ? store.notifications : []
-  const note = all.find((n) => n.id === id)
-
-  if (!note) return res.status(404).json({ message: "Notification not found" })
-  if (note.userId !== userId) return res.status(403).json({ message: "Forbidden" })
-
-  note.read = true
-  return res.json(note)
+async function markAllRead(req, res) {
+  const result = await db.query(
+    "UPDATE notifications SET read = true WHERE user_id = $1 AND read = false",
+    [req.user.id]
+  )
+  return res.json({ updated: result.rowCount })
 }
 
-// PATCH /api/notifications/read-all
-// Marks all of the current user's notifications as read
-function markAllRead(req, res) {
-  const userId = req.user && req.user.id
-  if (!userId) return res.status(401).json({ message: "Unauthorized" })
-
-  const all = Array.isArray(store.notifications) ? store.notifications : []
-  let updated = 0
-  all.forEach((n) => {
-    if (n.userId === userId && !n.read) {
-      n.read = true
-      updated += 1
-    }
-  })
-
-  return res.json({ updated })
+function normalizeNotification(n) {
+  return {
+    id: n.id,
+    userId: n.user_id,
+    title: n.title,
+    message: n.message,
+    read: n.read,
+    createdAt: n.created_at,
+  }
 }
 
 module.exports = { createNotification, getNotifications, markRead, markAllRead }
