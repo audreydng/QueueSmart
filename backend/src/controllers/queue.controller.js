@@ -74,7 +74,7 @@ async function leaveQueue(req, res) {
     );
 
     if (queue.rows.length === 0) {
-      return res.status(200).json({ error: "Queue not found" });
+      return res.status(404).json({ error: "Queue not found" });
     }
 
     const queue_id = queue.rows[0].id;
@@ -109,7 +109,7 @@ async function serveNext(req, res) {
     );
 
     if (queue.rows.length === 0) {
-      return res.status(200).json({ error: "Queue not found" });
+      return res.status(404).json({ error: "Queue not found" });
     }
 
     const queue_id = queue.rows[0].id;
