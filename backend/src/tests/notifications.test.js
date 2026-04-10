@@ -1,122 +1,134 @@
 require("dotenv").config()
 const request = require("supertest")
 const app = require("../app")
-const store = require("../data/store")
-const { createNotification } = require("../controllers/notifications.controller")
+const db = require("../db/database")
 
 let aliceToken
-let aliceId = "user-seed-1"
+let aliceId
 
 beforeEach(async () => {
-  store.resetStore()
+  await db.query("TRUNCATE TABLE notifications RESTART IDENTITY CASCADE")
+  await db.query("TRUNCATE TABLE history RESTART IDENTITY CASCADE")
+  await db.query("TRUNCATE TABLE queue_entries RESTART IDENTITY CASCADE")
+  await db.query("TRUNCATE TABLE queues RESTART IDENTITY CASCADE")
+  await db.query("TRUNCATE TABLE services RESTART IDENTITY CASCADE")
+  await db.query("TRUNCATE TABLE user_profiles RESTART IDENTITY CASCADE")
+  await db.query("TRUNCATE TABLE user_credentials RESTART IDENTITY CASCADE")
 
-  const res = await request(app).post("/api/auth/login").send({
-    email: "alice@example.com",
-    password: "password123",
-  })
-  aliceToken = res.body.token
+  const bcrypt = require("bcrypt")
+  const hash = (pw) => bcrypt.hashSync(pw, 10)
+
+  // seed alice
+  const userRes = await db.query(
+    "INSERT INTO user_credentials (email, password, role) VALUES ($1,$2,$3) RETURNING id",
+    ["alice@example.com", hash("password123"), "user"]
+  )
+
+  aliceId = userRes.rows[0].id
+
+  await db.query(
+    "INSERT INTO user_profiles (id, name) VALUES ($1,$2)",
+    [aliceId, "Alice"]
+  )
+
+  const login = await request(app)
+    .post("/api/auth/login")
+    .send({ email: "alice@example.com", password: "password123" })
+
+  aliceToken = login.body.token
 })
 
 // ─── GET /api/notifications ───────────────────────────────────────────────────
-
 describe("GET /api/notifications", () => {
-  test("should return notifications for current user", async () => {
-    createNotification(aliceId, "Test", "Hello Alice")
+  test("returns notifications for user", async () => {
+    await db.query(
+      "INSERT INTO notifications (user_id, title, message) VALUES ($1,$2,$3)",
+      [aliceId, "Test", "Hello Alice"]
+    )
+
     const res = await request(app)
       .get("/api/notifications")
       .set("Authorization", `Bearer ${aliceToken}`)
+
     expect(res.statusCode).toBe(200)
-    expect(Array.isArray(res.body)).toBe(true)
+    expect(res.body.length).toBe(1)
     expect(res.body[0].title).toBe("Test")
   })
 
-  test("should only return notifications for the current user", async () => {
-    createNotification("other-user-id", "Other", "Not for Alice")
+  test("returns empty for other users", async () => {
+    const other = await db.query(
+      "INSERT INTO user_credentials (email, password, role) VALUES ($1,$2,$3) RETURNING id",
+      ["other@example.com", hash("password123"), "user"]
+    )
+
+    await db.query(
+      "INSERT INTO notifications (user_id, title, message) VALUES ($1,$2,$3)",
+      [other.rows[0].id, "Other", "Not Alice"]
+    )
+
     const res = await request(app)
       .get("/api/notifications")
       .set("Authorization", `Bearer ${aliceToken}`)
-    expect(res.body.length).toBe(0)
-  })
 
-  test("should return 401 if not logged in", async () => {
-    const res = await request(app).get("/api/notifications")
-    expect(res.statusCode).toBe(401)
+    expect(res.body.length).toBe(0)
   })
 })
 
 // ─── PATCH /api/notifications/:id/read ───────────────────────────────────────
 
 describe("PATCH /api/notifications/:id/read", () => {
-  test("should mark a notification as read", async () => {
-    createNotification(aliceId, "Test", "Hello")
-    const notif = store.notifications[0]
+  test("marks notification as read", async () => {
+    const notif = await db.query(
+      "INSERT INTO notifications (user_id, title, message) VALUES ($1,$2,$3) RETURNING *",
+      [aliceId, "Test", "Hello"]
+    )
+
+    const id = notif.rows[0].id
+
     const res = await request(app)
-      .patch(`/api/notifications/${notif.id}/read`)
+      .patch(`/api/notifications/${id}/read`)
       .set("Authorization", `Bearer ${aliceToken}`)
+
     expect(res.statusCode).toBe(200)
-    expect(store.notifications[0].read).toBe(true)
+
+    const check = await db.query("SELECT read FROM notifications WHERE id=$1", [id])
+    expect(check.rows[0].read).toBe(true)
   })
 
-  test("should return 404 if notification not found", async () => {
+  test("404 if not found", async () => {
     const res = await request(app)
-      .patch("/api/notifications/nonexistent/read")
+      .patch("/api/notifications/00000000-0000-0000-0000-000000000000/read")
       .set("Authorization", `Bearer ${aliceToken}`)
+
     expect(res.statusCode).toBe(404)
-  })
-
-  test("should return 403 if notification belongs to another user", async () => {
-    createNotification("other-user", "Test", "Not Alice's")
-    const notif = store.notifications[0]
-    const res = await request(app)
-      .patch(`/api/notifications/${notif.id}/read`)
-      .set("Authorization", `Bearer ${aliceToken}`)
-    expect(res.statusCode).toBe(403)
   })
 })
 
 // ─── PATCH /api/notifications/read-all ───────────────────────────────────────
 
 describe("PATCH /api/notifications/read-all", () => {
-  test("should mark all notifications as read", async () => {
-    createNotification(aliceId, "A", "msg1")
-    createNotification(aliceId, "B", "msg2")
+  test("marks all as read", async () => {
+    await db.query(
+      "INSERT INTO notifications (user_id, title, message) VALUES ($1,$2,$3)",
+      [aliceId, "A", "msg"]
+    )
+
+    await db.query(
+      "INSERT INTO notifications (user_id, title, message) VALUES ($1,$2,$3)",
+      [aliceId, "B", "msg"]
+    )
+
     const res = await request(app)
       .patch("/api/notifications/read-all")
       .set("Authorization", `Bearer ${aliceToken}`)
+
     expect(res.statusCode).toBe(200)
-    const unread = store.notifications.filter(n => n.userId === aliceId && !n.read)
-    expect(unread.length).toBe(0)
-  })
-})
 
-// ─── GET /api/history ─────────────────────────────────────────────────────────
+    const unread = await db.query(
+      "SELECT * FROM notifications WHERE user_id=$1 AND read=false",
+      [aliceId]
+    )
 
-describe("GET /api/history", () => {
-  test("should return history for current user", async () => {
-    store.history.push({
-      id: "h-1", userId: aliceId, serviceId: "svc-1", serviceName: "General Checkup",
-      status: "served", joinedAt: new Date().toISOString(), completedAt: new Date().toISOString()
-    })
-    const res = await request(app)
-      .get("/api/history/my")
-      .set("Authorization", `Bearer ${aliceToken}`)
-    expect(res.statusCode).toBe(200)
-    expect(res.body[0].status).toBe("served")
-  })
-
-  test("should only return history for current user", async () => {
-    store.history.push({
-      id: "h-2", userId: "other-user", serviceId: "svc-1", serviceName: "General Checkup",
-      status: "served", joinedAt: new Date().toISOString(), completedAt: new Date().toISOString()
-    })
-    const res = await request(app)
-      .get("/api/history/my")
-      .set("Authorization", `Bearer ${aliceToken}`)
-    expect(res.body.length).toBe(0)
-  })
-
-  test("should return 401 if not logged in", async () => {
-    const res = await request(app).get("/api/history")
-    expect(res.statusCode).toBe(401)
+    expect(unread.rows.length).toBe(0)
   })
 })

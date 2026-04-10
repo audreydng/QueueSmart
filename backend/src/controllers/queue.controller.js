@@ -1,269 +1,282 @@
-//Queue Management Controller
-const { v4: uuidv4 } = require("uuid")
-const store = require("../data/store")
+const pool = require("../db/database");
 
-const { createNotification } = require("./notifications.controller")
+//GET ALL ACTIVE QUEUE ENTRIES
+async function getQueue(req, res) {
+  try {
+    const result = await pool.query(
+      `SELECT qe.*, s.name AS service_name
+       FROM queue_entries qe
+       JOIN services s ON qe.service_id = s.id
+       WHERE qe.status IN ('waiting', 'almost-ready')
+       ORDER BY qe.position ASC`
+    );
 
-//GET /api/queue
-//Returns all queue entries across all services (staff/admin)
-function getQueue(req, res) {
-  return res.json(store.queueEntries)
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to fetch queue" });
+  }
 }
 
-//GET /api/queue/my
-//Returns the current user's active queue entry (status: waiting or almost-ready)
-function getUserQueue(req, res) {
-  const entry = store.queueEntries.find(
-    (e) =>
-      e.userId === req.user.id &&
-      (e.status === "waiting" || e.status === "almost-ready")
-  )
+//JOIN QUEUE
+async function joinQueue(req, res) {
+  try {
+    const user_id = req.user.id; 
+    const { service_id } = req.body; 
 
-  return res.json(entry || null)
-}
-
-//GET /api/queue/wait-time/:serviceId
-//Returns estimated wait time in minutes for a service
-// = position * expectedDuration, capping at 180 min
-function getWaitTime(req, res) {
-  const service = store.services.find(
-    (s) => s.id === req.params.serviceId
-  )
-  if (!service)  {
-    return res.status(404).json({ error: "Service not found" })
-  }
-
-  const count = store.queueEntries.filter(
-    (e) =>
-      e.serviceId === service.id &&
-      (e.status === "waiting" || e.status === "almost-ready")
-  ).length
-
-  let waitTime = count * service.expectedDuration
-  waitTime = Math.min(waitTime, 180)
-
-  return res.json({
-    serviceId: service.id,
-    estimatedWaitMinutes: waitTime,
-  })
-}
-
-//POST /api/queue/join
-//Adds current user to the queue for a service
-function joinQueue(req, res) {
-  const { serviceId } = req.body
-
-  const service = store.services.find((s) => s.id === serviceId)
-  if (!service) {
-    return res.status(404).json({ error: "Service not found" })
-  }
-  if (!service.isOpen) {
-    return res.status(400).json({ error: "Service is not open" })
-  }
-
-  const existing = store.queueEntries.find(
-    (e) => e.userId === req.user.id && e.serviceId === serviceId
-  )
-  if (existing) {
-    return res.status(400).json({ error: "Already in queue" })
-  }
-
-  const positions = store.queueEntries
-    .filter((e) => e.serviceId === serviceId)
-    .map((e) => e.position)
-
-  const nextPosition = positions.length ? Math.max(...positions) + 1 : 1
-
-  const entry = {
-    id: uuidv4(),
-    userId: req.user.id,
-    serviceId,
-    position: nextPosition,
-    status: "waiting",
-    joinedAt: new Date(),
-  }
-
-  store.queueEntries.push(entry)
-
-  createNotification(
-    req.user.id,
-    "Joined Queue",
-    `You joined the queue for ${service.name}`
-  )
-
-  return res.status(201).json(entry)
-}
-
-//DELETE /api/queue/leave/:serviceId
-//Removes current user from the queue and records history
-function leaveQueue(req, res) {
-  const { serviceId } = req.params
-
-  const index = store.queueEntries.findIndex(
-    (e) => e.userId === req.user.id && e.serviceId === serviceId
-  )
-
-  if (index === -1)
-    return res.status(404).json({ error: "Queue entry not found" })
-  const removed = store.queueEntries.splice(index, 1)[0]
-
-  // shift positions
-  store.queueEntries.forEach((e) => {
-    if (e.serviceId === serviceId && e.position > removed.position) {
-      e.position -= 1
+    if (!service_id) {
+      return res.status(400).json({ error: "service_id is required" });
     }
-  })
 
-  store.history.push({
-    ...removed,
-    status: "left",
-    leftAt: new Date(),
-  })
+    const queueResult = await pool.query(
+      `SELECT id FROM queues WHERE service_id = $1`,
+      [service_id]
+    );
 
-  const service = store.services.find((s) => s.id === serviceId)
-
-  createNotification(
-    req.user.id,
-    "Left Queue",
-    `You left the queue for ${service?.name || serviceId}`
-  )
-
-  return res.json({ message: "Left queue" })
-}
-
-//POST /api/queue/serve-next/:serviceId
-//position-1 entry as "served" and shifts queue up (staff/admin)
-function serveNext(req, res) {
-  const { serviceId } = req.params
-
-  const entry = store.queueEntries.find(
-    (e) => e.serviceId === serviceId && e.position === 1
-  )
-
-  if (!entry) {
-    return res.status(400).json({ error: "Queue is empty" })
-  }
-  store.queueEntries = store.queueEntries.filter((e) => e.id !== entry.id)
-
-  entry.status = "served"
-  entry.servedAt = new Date()
-
-  store.history.push(entry)
-
-  store.queueEntries.forEach((e) => {
-    if (e.serviceId === serviceId) {
-      e.position -= 1
+    if (queueResult.rows.length === 0) {
+      return res.status(404).json({ error: "Queue not found" });
     }
-  })
 
-  createNotification(
-    entry.userId,
-    "Now Serving",
-    "It's your turn!"
-  )
+    const queue_id = queueResult.rows[0].id;
 
-  return res.json({ message: "Served next user", entry })
+    const positionResult = await pool.query(
+      `SELECT COALESCE(MAX(position), 0) + 1 AS next_pos
+       FROM queue_entries
+       WHERE queue_id = $1`,
+      [queue_id]
+    );
+
+    const position = positionResult.rows[0].next_pos;
+
+    const insertResult = await pool.query(
+      `INSERT INTO queue_entries (queue_id, service_id, user_id, position, status)
+       VALUES ($1, $2, $3, $4, 'waiting')
+       RETURNING *`,
+      [queue_id, service_id, user_id, position]
+    );
+
+    return res.status(201).json(insertResult.rows[0]);
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Failed to join queue" });
+  }
 }
 
-//PATCH /api/queue/status/:entryId
-//updates status of a specific entry (staff/admin)
-function updateStatus(req, res) {
-  const { entryId } = req.params
-  const { status } = req.body
+//LEAVE QUEUE
+async function leaveQueue(req, res) {
+  try {
+    const user_id = req.user.id;
+    const { service_id } = req.params;
 
-  const validStatuses = ["waiting", "almost-ready", "served", "left"]
+    const queue = await pool.query(
+      `SELECT id FROM queues WHERE service_id = $1`,
+      [service_id]
+    );
 
-  if (!validStatuses.includes(status)) {
-    return res.status(400).json({ error: "Invalid status" })
-  }
-
-  const entry = store.queueEntries.find((e) => e.id === entryId)
-  if (!entry) {
-    return res.status(404).json({ error: "Entry not found" })
-  }
-  entry.status = status
-
-  if (status === "almost-ready") {
-    createNotification(
-      entry.userId,
-      "Almost Ready",
-      "You are almost ready!"
-    )
-  }
-  
-  if (status === "served") {
-    createNotification(
-      entry.userId,
-      "Now Serving",
-      "You are now being served!"
-    )
-  }
-
-  return res.json(entry)
-}
-
-//PATCH /api/queue/reorder/:serviceId
-//swaps positions of two adjacent entries (staff/admin)
-function reorderQueue(req, res) {
-  const { serviceId } = req.params
-  const { entryId, direction } = req.body
-
-  const entry = store.queueEntries.find((e) => e.id === entryId)
-  if (!entry) {
-    return res.status(404).json({ error: "Entry not found" })
-  }
-
-  const targetPosition =
-    direction === "up" ? entry.position - 1 : entry.position + 1
-
-  const swapTarget = store.queueEntries.find(
-    (e) =>
-      e.serviceId === serviceId && e.position === targetPosition
-  )
-
-  if (!swapTarget) {
-    return res.status(400).json({ error: "Cannot reorder" })
-  }
-
-  const temp = entry.position
-  entry.position = swapTarget.position
-  swapTarget.position = temp
-
-  return res.json({ message: "Reordered successfully" })
-}
-
-//DELETE /api/queue/remove/:entryId
-//Removes any entry from queue (staff/admin)
-function removeEntry(req, res) {
-  const { entryId } = req.params
-
-  const index = store.queueEntries.findIndex((e) => e.id === entryId)
-  if (index === -1) {
-    return res.status(404).json({ error: "Entry not found" })
-  }
-
-  const removed = store.queueEntries.splice(index, 1)[0]
-
-  store.queueEntries.forEach((e) => {
-    if (
-      e.serviceId === removed.serviceId &&
-      e.position > removed.position
-    ) {
-      e.position -= 1
+    if (queue.rows.length === 0) {
+      return res.status(200).json({ error: "Queue not found" });
     }
-  })
 
-  return res.json({ message: "Entry removed" })
+    const queue_id = queue.rows[0].id;
+
+    const result = await pool.query(
+      `UPDATE queue_entries
+       SET status = 'left'
+       WHERE queue_id = $1 AND user_id = $2 AND status = 'waiting'
+       RETURNING *`,
+      [queue_id, user_id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: "No active queue entry found" });
+    }
+
+    return res.json(result.rows[0]);
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Failed to leave queue" });
+  }
+}
+
+//SERVE NEXT USER
+async function serveNext(req, res) {
+  try {
+    const { service_id } = req.params;
+
+    const queue = await pool.query(
+      `SELECT id FROM queues WHERE service_id = $1`,
+      [service_id]
+    );
+
+    if (queue.rows.length === 0) {
+      return res.status(200).json({ error: "Queue not found" });
+    }
+
+    const queue_id = queue.rows[0].id;
+
+    const result = await pool.query(
+      `SELECT * FROM queue_entries
+       WHERE queue_id = $1 AND status = 'waiting'
+       ORDER BY position ASC
+       LIMIT 1`,
+      [queue_id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: "No users in queue" });
+    }
+
+    const entry = result.rows[0];
+
+    await pool.query(
+      `UPDATE queue_entries
+       SET status = 'served'
+       WHERE id = $1`,
+      [entry.id]
+    );
+
+    return res.json(entry);
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Failed to serve next user" });
+  }
+}
+
+//GET USER QUEUE
+async function getUserQueue(req, res) {
+  try {
+    const user_id = req.user.id; // assuming verifyToken sets req.user
+
+    const result = await pool.query(
+      `SELECT qe.*, s.name AS service_name
+       FROM queue_entries qe
+       JOIN services s ON qe.service_id = s.id
+       WHERE qe.user_id = $1
+       AND qe.status IN ('waiting', 'almost-ready')
+       ORDER BY qe.created_at DESC`,
+      [user_id]
+    );
+
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to fetch user queue" });
+  }
+}
+
+//GET WAIT TIME
+async function getWaitTime(req, res) {
+  try {
+    const { service_id } = req.params;
+
+    const result = await pool.query(
+      `SELECT COUNT(*) AS position
+       FROM queue_entries
+       WHERE service_id = $1
+       AND status IN ('waiting', 'almost-ready')`,
+      [service_id]
+    );
+
+    const position = parseInt(result.rows[0].position, 10);
+    const estimatedMinutes = position * 5;
+
+    res.json({ service_id, position, estimatedMinutes });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to calculate wait time" });
+  }
+}
+
+async function updateStatus(req, res) {
+  try {
+    const { entryId } = req.params;
+    const { status } = req.body;
+
+    const result = await pool.query(
+      `UPDATE queue_entries
+       SET status = $1
+       WHERE id = $2
+       RETURNING *`,
+      [status, entryId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: "Entry not found" });
+    }
+
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to update status" });
+  }
+}
+
+async function reorderQueue(req, res) {
+  try {
+    const { service_id } = req.params;
+    const { entryId, direction } = req.body;
+
+    // simplistic swap logic (you can improve later)
+    const current = await pool.query(
+      `SELECT id, position FROM queue_entries WHERE id = $1`,
+      [entryId]
+    );
+
+    if (current.rows.length === 0) {
+      return res.status(404).json({ error: "Entry not found" });
+    }
+
+    const currentPos = current.rows[0].position;
+    const swapPos = direction === "up" ? currentPos - 1 : currentPos + 1;
+
+    await pool.query(
+      `UPDATE queue_entries
+       SET position = CASE
+         WHEN position = $1 THEN $2
+         WHEN position = $2 THEN $1
+         ELSE position
+       END
+       WHERE service_id = $3`,
+      [currentPos, swapPos, service_id]
+    );
+
+    res.json({ message: "Queue reordered" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to reorder queue" });
+  }
+}
+
+async function removeEntry(req, res) {
+  try {
+    const { entryId } = req.params;
+
+    const result = await pool.query(
+      `DELETE FROM queue_entries
+       WHERE id = $1
+       RETURNING *`,
+      [entryId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: "Entry not found" });
+    }
+
+    res.json({ message: "Entry removed", entry: result.rows[0] });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to remove entry" });
+  }
 }
 
 module.exports = {
   getQueue,
-  getUserQueue,
-  getWaitTime,
   joinQueue,
   leaveQueue,
   serveNext,
+  getUserQueue,
+  getWaitTime,
   updateStatus,
   reorderQueue,
-  removeEntry,
-}
+  removeEntry
+};

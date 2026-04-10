@@ -95,7 +95,7 @@ describe("GET /api/history/my", () => {
       .get("/api/history/my")
       .set("Authorization", `Bearer ${aliceToken}`)
     expect(res.statusCode).toBe(200)
-    expect(res.body.every((e) => e.userId === "user-seed-1")).toBe(true)
+    expect(res.body.every((e) => e.userId === userIds["alice@example.com"])).toBe(true)
   })
 
   test("should return 401 if not logged in", async () => {

@@ -19,23 +19,23 @@ router.get("/", verifyToken, requireRole("staff", "administrator"), getQueue)
 //GET /api/queue/my - current user's active entry
 router.get("/my", verifyToken, getUserQueue)
 
-//GET /api/queue/wait-time/:serviceId - estimated wait time
-router.get("/wait-time/:serviceId", getWaitTime)
+//GET /api/queue/wait-time/:service_id - estimated wait time
+router.get("/wait-time/:service_id", getWaitTime)
 
 //POST /api/queue/join - join a queue
-router.post("/join", verifyToken, requireFields("serviceId"), joinQueue)
+router.post("/join", verifyToken, requireFields("service_id"), joinQueue)
 
-//DELETE /api/queue/leave/:serviceId - leave queue
-router.delete("/leave/:serviceId", verifyToken, leaveQueue)
+//DELETE /api/queue/leave/:service_id - leave queue
+router.delete("/leave/:service_id", verifyToken, leaveQueue)
 
-//POST /api/queue/serve-next/:serviceId - serve next user (staff/admin)
-router.post("/serve-next/:serviceId", verifyToken, requireRole("staff", "administrator"), serveNext)
+//POST /api/queue/serve-next/:service_id - serve next user (staff/admin)
+router.post("/serve-next/:service_id", verifyToken, requireRole("staff", "administrator"), serveNext)
 
 //PATCH /api/queue/status/:entryId - update entry status (staff/admin)
 router.patch("/status/:entryId", verifyToken, requireRole("staff", "administrator"), requireFields("status"), updateStatus)
 
-//PATCH /api/queue/reorder/:serviceId - reorder queue (staff/admin)
-router.patch("/reorder/:serviceId", verifyToken, requireRole("staff", "administrator"), requireFields("entryId", "direction"), reorderQueue)
+//PATCH /api/queue/reorder/:service_id - reorder queue (staff/admin)
+router.patch("/reorder/:service_id", verifyToken, requireRole("staff", "administrator"), requireFields("entryId", "direction"), reorderQueue)
 
 //DELETE /api/queue/remove/:entryId - remove entry (staff/admin)
 router.delete("/remove/:entryId", verifyToken, requireRole("staff", "administrator"), removeEntry)

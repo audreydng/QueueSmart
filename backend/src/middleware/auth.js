@@ -12,7 +12,10 @@ function verifyToken(req, res, next) {
     if (err) {
       return res.status(401).json({ message: "Invalid or expired token" })
     }
-    req.user = decoded
+    req.user = {
+      id: decoded.id || decoded.userId || decoded.sub,
+      role: decoded.role
+    }
     next()
   })
 }
