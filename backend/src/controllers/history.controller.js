@@ -1,19 +1,34 @@
-const store = require("../data/store")
+const db = require("../db/database")
 
-// See entire history (for staff/admin)
-function getHistory(_req, res) {
-  const sorted = [...store.history].sort(
-    (a, b) => new Date(b.servedAt || b.leftAt) - new Date(a.servedAt || a.leftAt)
+async function getHistory(_req, res) {
+  const result = await db.query(
+    `SELECT h.*, s.name as service_name
+     FROM history h JOIN services s ON h.service_id = s.id
+     ORDER BY h.created_at DESC`
   )
-  return res.json(sorted)
+  return res.json(result.rows.map(normalizeHistory))
 }
 
-// See history entries for the current user
-function getUserHistory(req, res) {
-  const sorted = store.history
-    .filter((e) => e.userId === req.user.id)
-    .sort((a, b) => new Date(b.servedAt || b.leftAt) - new Date(a.servedAt || a.leftAt))
-  return res.json(sorted)
+async function getUserHistory(req, res) {
+  const result = await db.query(
+    `SELECT h.*, s.name as service_name
+     FROM history h JOIN services s ON h.service_id = s.id
+     WHERE h.user_id = $1 ORDER BY h.created_at DESC`,
+    [req.user.id]
+  )
+  return res.json(result.rows.map(normalizeHistory))
+}
+
+function normalizeHistory(h) {
+  return {
+    id: h.id,
+    userId: h.user_id,
+    serviceId: h.service_id,
+    serviceName: h.service_name,
+    status: h.status,
+    joinedAt: h.joined_at,
+    completedAt: h.served_at || h.left_at,
+  }
 }
 
 module.exports = { getHistory, getUserHistory }
