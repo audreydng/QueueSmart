@@ -1,15 +1,28 @@
 const { v4: uuidv4 } = require("uuid")
 const store = require("../data/store")
+const db = require("../db/database")
 
 const VALID_PRIORITIES = ["low", "medium", "high"]
 
+function normalizeService(service) {
+  return {
+    id: service.id,
+    name: service.name,
+    description: service.description,
+    expectedDuration: service.expected_duration,
+    priority: service.priority,
+    isOpen: service.is_open,
+    createdAt: service.created_at
+  }
+}
 // GET /api/services
-function getServices(_req, res) {
-  return res.json(store.services)
+async function getServices(_req, res) {
+  const result = await db.query("SELECT * FROM services")
+  return res.json(result.rows.map(normalizeService))
 }
 
 // POST /api/services (admin only)
-function createService(req, res) {
+async function createService(req, res) {
   const { name, description, expectedDuration, priority } = req.body
 
   if (name.length > 100) {
@@ -35,16 +48,22 @@ function createService(req, res) {
     createdAt: new Date().toISOString(),
   }
 
-  store.services.push(service)
+  await db.query(
+    "INSERT INTO services (id, name, description, expected_duration, priority, is_open, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7)",
+    [service.id, service.name, service.description, service.expectedDuration, service.priority, service.isOpen, service.createdAt]
+  )
+
   return res.status(201).json(service)
 }
 
 // PUT /api/services/:id (admin only)
-function updateService(req, res) {
-  const index = store.services.findIndex((s) => s.id === req.params.id)
-  if (index === -1) {
+async function updateService(req, res) {
+  // Fetch existing service
+  const result = await db.query("SELECT * FROM services WHERE id = $1", [req.params.id])
+  if (!result || result.rows.length === 0) {
     return res.status(404).json({ error: "Service not found" })
   }
+  const existing = result.rows[0]
 
   const { name, description, expectedDuration, priority } = req.body
 
@@ -63,19 +82,45 @@ function updateService(req, res) {
     return res.status(400).json({ error: `priority must be one of: ${VALID_PRIORITIES.join(", ")}` })
   }
 
-  const updates = {}
-  if (name !== undefined) updates.name = name.trim()
-  if (description !== undefined) updates.description = description.trim()
-  if (expectedDuration !== undefined) updates.expectedDuration = Number(expectedDuration)
-  if (priority !== undefined) updates.priority = priority
+  const fields = []
+  const values = []
+  let idx = 1
 
-  store.services[index] = { ...store.services[index], ...updates }
-  return res.json(store.services[index])
+  if (name !== undefined) {
+    fields.push(`name = $${idx}`)
+    values.push(name.trim())
+    idx++
+  }
+  if (description !== undefined) {
+    fields.push(`description = $${idx}`)
+    values.push(description.trim())
+    idx++
+  }
+  if (expectedDuration !== undefined) {
+    fields.push(`expected_duration = $${idx}`)
+    values.push(Number(expectedDuration))
+    idx++
+  }
+  if (priority !== undefined) {
+    fields.push(`priority = $${idx}`)
+    values.push(priority)
+    idx++
+  }
+
+  if (fields.length === 0) {
+    return res.json(normalizeService(existing))
+  }
+
+  const query = `UPDATE services SET ${fields.join(", ")} WHERE id = $${idx} RETURNING *`
+  values.push(req.params.id)
+
+  const updated = await db.query(query, values)
+  return res.json(normalizeService(updated.rows[0]))
 }
 
 // PATCH /api/services/:id/toggle (admin only)
-function toggleService(req, res) {
-  const service = store.services.find((s) => s.id === req.params.id)
+async function toggleService(req, res) {
+  const service = await db.query("SELECT * FROM services WHERE id = $1", [req.params.id])
   if (!service) {
     return res.status(404).json({ error: "Service not found" })
   }
