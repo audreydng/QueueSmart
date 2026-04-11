@@ -1,4 +1,18 @@
 const pool = require("../db/database");
+const { createNotification } = require("./notifications.controller");
+
+function normalizeEntry(e) {
+  return {
+    id: e.id,
+    queueId: e.queue_id,
+    serviceId: e.service_id,
+    serviceName: e.service_name,
+    userId: e.user_id,
+    position: e.position,
+    status: e.status,
+    joinedAt: e.joined_at,
+  }
+}
 
 //GET ALL ACTIVE QUEUE ENTRIES
 async function getQueue(req, res) {
@@ -11,7 +25,7 @@ async function getQueue(req, res) {
        ORDER BY qe.position ASC`
     );
 
-    res.json(result.rows);
+    res.json(result.rows.map(normalizeEntry));
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Failed to fetch queue" });
@@ -55,7 +69,11 @@ async function joinQueue(req, res) {
       [queue_id, service_id, user_id, position]
     );
 
-    return res.status(201).json(insertResult.rows[0]);
+    const serviceResult = await pool.query(`SELECT name FROM services WHERE id = $1`, [service_id]);
+    const serviceName = serviceResult.rows[0]?.name ?? "the service";
+    await createNotification(user_id, "Joined Queue", `You are #${position} in line for ${serviceName}.`);
+
+    return res.status(201).json(normalizeEntry(insertResult.rows[0]));
   } catch (err) {
     console.error(err);
     return res.status(500).json({ error: "Failed to join queue" });
@@ -164,11 +182,11 @@ async function getUserQueue(req, res) {
        JOIN services s ON qe.service_id = s.id
        WHERE qe.user_id = $1
        AND qe.status IN ('waiting', 'almost-ready')
-       ORDER BY qe.created_at DESC`,
+       ORDER BY qe.joined_at ASC`,
       [user_id]
     );
 
-    res.json(result.rows);
+    res.json(result.rows.map(normalizeEntry));
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Failed to fetch user queue" });

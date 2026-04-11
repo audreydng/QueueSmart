@@ -47,7 +47,7 @@ export const api = {
     getAll: () => apiFetch<unknown[]>("/queue"),
     getMy: () => apiFetch<unknown | null>("/queue/my"),
     join: (serviceId: string) =>
-      apiFetch<unknown>("/queue/join", { method: "POST", body: JSON.stringify({ serviceId }) }),
+      apiFetch<unknown>("/queue/join", { method: "POST", body: JSON.stringify({ service_id: serviceId }) }),
     leave: (serviceId: string) =>
       apiFetch<unknown>(`/queue/leave/${serviceId}`, { method: "DELETE" }),
     serveNext: (serviceId: string) =>

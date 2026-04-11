@@ -98,8 +98,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         const data = await api.queue.getAll() as QueueEntry[]
         setQueueEntries(data)
       } else {
-        const entry = await api.queue.getMy() as QueueEntry | null
-        setQueueEntries(entry ? [entry] : [])
+        const entries = await api.queue.getMy() as QueueEntry[]
+        console.log("[fetchQueue] getMy returned:", entries)
+        setQueueEntries(Array.isArray(entries) ? entries : [])
       }
     } catch { /* ignore */ }
   }, [])
@@ -184,9 +185,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const joinQueue = useCallback(async (serviceId: string) => {
     if (!currentUser) return
-    await api.queue.join(serviceId)
-    await fetchQueue(currentUser)
-    await fetchNotifications()
+    try {
+      await api.queue.join(serviceId)
+      await fetchQueue(currentUser)
+      await fetchNotifications()
+    } catch (err) {
+      alert((err as Error).message ?? "Failed to join queue")
+    }
   }, [currentUser, fetchQueue, fetchNotifications])
 
   const leaveQueue = useCallback(async (entryId: string) => {
@@ -345,6 +350,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const getUserQueueEntry = useCallback(() => {
     if (!currentUser) return undefined
+    console.log("[getUserQueueEntry] queueEntries:", queueEntries, "currentUser.id:", currentUser.id)
     return queueEntries.find(
       (e: QueueEntry) => e.userId === currentUser.id && (e.status === "waiting" || e.status === "almost-ready")
     )

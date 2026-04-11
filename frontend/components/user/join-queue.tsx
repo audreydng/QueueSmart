@@ -6,8 +6,8 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Clock, Users, Zap } from "lucide-react"
 
-export function JoinQueueScreen() {
-  const { services, queueEntries, joinQueue, getUserQueueEntry, currentUser } = useApp()
+export function JoinQueueScreen({ onNavigate }: { onNavigate: (view: string) => void }) {
+  const { services, queueEntries, joinQueue, getUserQueueEntry } = useApp()
   const currentEntry = getUserQueueEntry()
   const openServices = services.filter((s) => s.isOpen)
 
@@ -90,7 +90,7 @@ export function JoinQueueScreen() {
                     </span>
                   </div>
                   <Button
-                    onClick={() => joinQueue(service.id)}
+                    onClick={async () => { await joinQueue(service.id); if (!alreadyInQueue) onNavigate("queue-status") }}
                     disabled={alreadyInQueue && !isAlreadyInThis}
                     variant={isAlreadyInThis ? "secondary" : "default"}
                     className="w-full"

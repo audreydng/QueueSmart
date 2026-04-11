@@ -53,7 +53,7 @@ function AppContent() {
       case "dashboard":
         return <UserDashboard onNavigate={setCurrentView} />
       case "join-queue":
-        return <JoinQueueScreen />
+        return <JoinQueueScreen onNavigate={setCurrentView} />
       case "queue-status":
         return <QueueStatusScreen onNavigate={setCurrentView} />
       case "history":
