@@ -160,4 +160,18 @@ describe("POST /api/auth/login", () => {
     const res = await request(app).get("/api/health").set("Authorization", `Bearer ${token}`)
     expect(res.statusCode).toBe(200)
   })
+
+  test("should return 401 with invalid token", async () => {
+    const res = await request(app).get("/api/history/my").set("Authorization", "Bearer invalidtoken123")
+    expect(res.statusCode).toBe(401)
+    expect(res.body.message).toMatch(/invalid/i)
+  })
+})
+
+describe("404 handler", () => {
+  test("should return 404 for unknown routes", async () => {
+    const res = await request(app).get("/api/nonexistent-route")
+    expect(res.statusCode).toBe(404)
+    expect(res.body.message).toBe("Route not found")
+  })
 })

@@ -219,6 +219,58 @@ describe("PUT /api/services/:id", () => {
       .send({ priority: "invalid" })
     expect(res.statusCode).toBe(400)
   })
+
+  test("should return 400 if updated name exceeds 100 characters", async () => {
+    const res = await request(app)
+      .put("/api/services/00000000-0000-0000-0000-000000000001")
+      .set("Authorization", `Bearer ${adminToken}`)
+      .send({ name: "A".repeat(101) })
+    expect(res.statusCode).toBe(400)
+  })
+
+  test("should return 400 if updated expectedDuration is invalid", async () => {
+    const res = await request(app)
+      .put("/api/services/00000000-0000-0000-0000-000000000001")
+      .set("Authorization", `Bearer ${adminToken}`)
+      .send({ expectedDuration: 0 })
+    expect(res.statusCode).toBe(400)
+  })
+
+  test("should update description only", async () => {
+    const res = await request(app)
+      .put("/api/services/00000000-0000-0000-0000-000000000001")
+      .set("Authorization", `Bearer ${adminToken}`)
+      .send({ description: "New description" })
+    expect(res.statusCode).toBe(200)
+    expect(res.body.description).toBe("New description")
+  })
+
+  test("should update expectedDuration only", async () => {
+    const res = await request(app)
+      .put("/api/services/00000000-0000-0000-0000-000000000001")
+      .set("Authorization", `Bearer ${adminToken}`)
+      .send({ expectedDuration: 60 })
+    expect(res.statusCode).toBe(200)
+    expect(res.body.expectedDuration).toBe(60)
+  })
+
+  test("should update priority only", async () => {
+    const res = await request(app)
+      .put("/api/services/00000000-0000-0000-0000-000000000001")
+      .set("Authorization", `Bearer ${adminToken}`)
+      .send({ priority: "high" })
+    expect(res.statusCode).toBe(200)
+    expect(res.body.priority).toBe("high")
+  })
+
+  test("should return existing service if no fields to update", async () => {
+    const res = await request(app)
+      .put("/api/services/00000000-0000-0000-0000-000000000001")
+      .set("Authorization", `Bearer ${adminToken}`)
+      .send({})
+    expect(res.statusCode).toBe(200)
+    expect(res.body.id).toBe("00000000-0000-0000-0000-000000000001")
+  })
 })
 
 // PATCH /api/services/:id/toggle
