@@ -1,5 +1,4 @@
 const { v4: uuidv4 } = require("uuid")
-const store = require("../data/store")
 const db = require("../db/database")
 
 const VALID_PRIORITIES = ["low", "medium", "high"]
@@ -120,13 +119,17 @@ async function updateService(req, res) {
 
 // PATCH /api/services/:id/toggle (admin only)
 async function toggleService(req, res) {
-  const service = await db.query("SELECT * FROM services WHERE id = $1", [req.params.id])
-  if (!service) {
+  const result = await db.query("SELECT * FROM services WHERE id = $1", [req.params.id])
+  if (!result || result.rows.length === 0) {
     return res.status(404).json({ error: "Service not found" })
   }
 
-  service.isOpen = !service.isOpen
-  return res.json(service)
+  const updated = await db.query(
+    "UPDATE services SET is_open = NOT is_open WHERE id = $1 RETURNING *",
+    [req.params.id]
+  )
+
+  return res.json(normalizeService(updated.rows[0]))
 }
 
 module.exports = { getServices, createService, updateService, toggleService }
