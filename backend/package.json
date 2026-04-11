@@ -30,9 +30,12 @@
     "testMatch": [
       "**/tests/**/*.test.js"
     ],
+    "globalTeardown": "./src/tests/globalTeardown.js",
     "collectCoverageFrom": [
       "src/**/*.js",
-      "!src/server.js"
+      "!src/server.js",
+      "!src/db/migrate.js",
+      "!src/db/seed.js"
     ]
   }
 }

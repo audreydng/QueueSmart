@@ -91,7 +91,13 @@ async function leaveQueue(req, res) {
       return res.status(404).json({ error: "No active queue entry found" });
     }
 
-    return res.json(result.rows[0]);
+    const entry = result.rows[0];
+    await pool.query(
+      `INSERT INTO history (user_id, service_id, status, joined_at, left_at) VALUES ($1, $2, 'left', $3, NOW())`,
+      [entry.user_id, entry.service_id, entry.joined_at]
+    );
+
+    return res.json(entry);
   } catch (err) {
     console.error(err);
     return res.status(500).json({ error: "Failed to leave queue" });
@@ -133,6 +139,11 @@ async function serveNext(req, res) {
        SET status = 'served'
        WHERE id = $1`,
       [entry.id]
+    );
+
+    await pool.query(
+      `INSERT INTO history (user_id, service_id, status, joined_at, served_at) VALUES ($1, $2, 'served', $3, NOW())`,
+      [entry.user_id, entry.service_id, entry.joined_at]
     );
 
     return res.json(entry);

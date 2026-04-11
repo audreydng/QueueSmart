@@ -70,9 +70,6 @@ beforeEach(async () => {
   staffToken = staffRes.body.token
 })
 
-afterAll(async () => {
-  await db.pool.end()
-})
 
 // GET /api/history
 

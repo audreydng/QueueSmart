@@ -31,9 +31,6 @@ async function resetAuthData() {
   }
 }
 
-afterAll(async () => {
-  await db.pool.end()
-})
 
 beforeEach(async () => {
   await resetAuthData()

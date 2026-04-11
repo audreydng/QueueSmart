@@ -88,9 +88,6 @@ beforeEach(async () => {
   adminToken = adminRes.body.token
 })
 
-afterAll(async () => {
-  await db.pool.end()
-})
 
 //TESTS
 

@@ -2,6 +2,9 @@ require("dotenv").config()
 const request = require("supertest")
 const app = require("../app")
 const db = require("../db/database")
+const bcrypt = require("bcrypt")
+
+const hash = (pw) => bcrypt.hashSync(pw, 10)
 
 let aliceToken
 let aliceId
@@ -14,9 +17,6 @@ beforeEach(async () => {
   await db.query("TRUNCATE TABLE services RESTART IDENTITY CASCADE")
   await db.query("TRUNCATE TABLE user_profiles RESTART IDENTITY CASCADE")
   await db.query("TRUNCATE TABLE user_credentials RESTART IDENTITY CASCADE")
-
-  const bcrypt = require("bcrypt")
-  const hash = (pw) => bcrypt.hashSync(pw, 10)
 
   // seed alice
   const userRes = await db.query(
