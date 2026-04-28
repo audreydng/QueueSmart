@@ -2,7 +2,7 @@ require("dotenv").config()
 const request = require("supertest")
 const app = require("../app")
 const db = require("../db/database")
-const bcrypt = require("bcrypt")
+const { hashPassword } = require("../utils/password")
 
 let adminToken
 let userToken
@@ -39,7 +39,7 @@ async function resetTestData() {
     { email: "admin@example.com", name: "Administrator", role: "administrator", password: "admin123" },
   ]
 
-  const hash = async (pw) => bcrypt.hash(pw, 10)
+  const hash = async (pw) => hashPassword(pw)
   const userIds = {}
   for (const u of users) {
     const h = await hash(u.password)

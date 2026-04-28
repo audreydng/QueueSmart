@@ -1,6 +1,6 @@
-const bcrypt = require("bcrypt")
 const jwt = require("jsonwebtoken")
 const db = require("../db/database")
+const { hashPassword, comparePassword } = require("../utils/password")
 
 const VALID_ROLES = ["user", "staff", "administrator"]
 const SALT_ROUNDS = 10
@@ -27,7 +27,7 @@ async function register(req, res) {
     return res.status(400).json({ message: "Email already registered" })
   }
 
-  const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS)
+  const hashedPassword = await hashPassword(password)
 
   const credResult = await db.query(
     "INSERT INTO user_credentials (email, password, role) VALUES ($1, $2, $3) RETURNING id, email, role, created_at",
@@ -58,7 +58,7 @@ async function login(req, res) {
   }
 
   const user = credResult.rows[0]
-  const isMatch = await bcrypt.compare(password, user.password)
+  const isMatch = await comparePassword(password, user.password)
   if (!isMatch) {
     return res.status(401).json({ message: "Invalid password" })
   }

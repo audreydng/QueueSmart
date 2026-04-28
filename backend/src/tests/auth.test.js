@@ -13,8 +13,8 @@ async function resetAuthData() {
   await db.query("DELETE FROM user_credentials")
 
   // Re-seed seed users used by tests
-  const bcrypt = require("bcrypt")
-  const hash = async (pw) => bcrypt.hash(pw, 10)
+  const { hashPassword } = require("../utils/password")
+  const hash = async (pw) => hashPassword(pw)
 
   const users = [
     { email: "alice@example.com", name: "Alice Johnson", role: "user", password: await hash("password123") },

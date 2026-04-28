@@ -2,7 +2,7 @@ require("dotenv").config()
 const request = require("supertest")
 const app = require("../app")
 const db = require("../db/database")
-const bcrypt = require("bcrypt")
+const { hashPassword } = require("../utils/password")
 
 const SVC1 = "00000000-0000-0000-0000-000000000001"
 const SVC2 = "00000000-0000-0000-0000-000000000002"
@@ -34,7 +34,7 @@ async function resetDB() {
   ]
 
   for (const u of users) {
-    const hash = await bcrypt.hash(u.password, 10)
+    const hash = await hashPassword(u.password)
     const r = await db.query(
       "INSERT INTO user_credentials (email, password, role) VALUES ($1, $2, $3) RETURNING id",
       [u.email, hash, u.role]

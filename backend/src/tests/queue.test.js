@@ -2,7 +2,7 @@ require("dotenv").config()
 const request = require("supertest")
 const app = require("../app")
 const db = require("../db/database")
-const bcrypt = require("bcrypt")
+const { hashPasswordSync } = require("../utils/password")
 
 let aliceToken, danaToken, staffToken, adminToken
 let userIds = {}
@@ -16,7 +16,7 @@ async function resetQueueData() {
     RESTART IDENTITY CASCADE
   `)
 
-  const hash = (pw) => bcrypt.hashSync(pw, 10)
+  const hash = (pw) => hashPasswordSync(pw)
 
   const users = [
     { email: "alice@example.com", name: "Alice", role: "user", password: hash("password123") },

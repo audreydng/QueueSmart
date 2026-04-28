@@ -2,9 +2,9 @@ require("dotenv").config()
 const request = require("supertest")
 const app = require("../app")
 const db = require("../db/database")
-const bcrypt = require("bcrypt")
+const { hashPasswordSync } = require("../utils/password")
 
-const hash = (pw) => bcrypt.hashSync(pw, 10)
+const hash = (pw) => hashPasswordSync(pw)
 
 let aliceToken
 let aliceId

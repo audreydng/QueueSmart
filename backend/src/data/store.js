@@ -1,6 +1,4 @@
-const bcrypt = require("bcrypt")
-
-const SALT_ROUNDS = 10
+const { hashPasswordSync } = require("../utils/password")
 
 // Seed data matching frontend/lib/app-context.tsx
 function createSeedUsers() {
@@ -10,7 +8,7 @@ function createSeedUsers() {
       email: "alice@example.com",
       name: "Alice Johnson",
       role: "user",
-      password: bcrypt.hashSync("password123", SALT_ROUNDS),
+      password: hashPasswordSync("password123"),
       createdAt: new Date().toISOString(),
     },
     {
@@ -18,7 +16,7 @@ function createSeedUsers() {
       email: "bob@example.com",
       name: "Bob Smith",
       role: "user",
-      password: bcrypt.hashSync("password123", SALT_ROUNDS),
+      password: hashPasswordSync("password123"),
       createdAt: new Date().toISOString(),
     },
     {
@@ -26,7 +24,7 @@ function createSeedUsers() {
       email: "charlie@example.com",
       name: "Charlie Lee",
       role: "user",
-      password: bcrypt.hashSync("password123", SALT_ROUNDS),
+      password: hashPasswordSync("password123"),
       createdAt: new Date().toISOString(),
     },
     {
@@ -34,7 +32,7 @@ function createSeedUsers() {
       email: "dana@example.com",
       name: "Dana White",
       role: "user",
-      password: bcrypt.hashSync("password123", SALT_ROUNDS),
+      password: hashPasswordSync("password123"),
       createdAt: new Date().toISOString(),
     },
     {
@@ -43,7 +41,7 @@ function createSeedUsers() {
       name: "Staff User",
       role: "staff",
       serviceId: "svc-1",
-      password: bcrypt.hashSync("staff123", SALT_ROUNDS),
+      password: hashPasswordSync("staff123"),
       createdAt: new Date().toISOString(),
     },
     {
@@ -51,7 +49,7 @@ function createSeedUsers() {
       email: "admin@example.com",
       name: "Administrator",
       role: "administrator",
-      password: bcrypt.hashSync("admin123", SALT_ROUNDS),
+      password: hashPasswordSync("admin123"),
       createdAt: new Date().toISOString(),
     },
   ]

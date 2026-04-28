@@ -1,8 +1,6 @@
 require("dotenv").config()
-const bcrypt = require("bcrypt")
 const { pool } = require("./database")
-
-const SALT_ROUNDS = 10
+const { hashPasswordSync } = require("../utils/password")
 
 async function seed() {
   const client = await pool.connect()
@@ -48,7 +46,7 @@ async function seed() {
 
     const userIds = {}
     for (const u of users) {
-      const hash = await bcrypt.hash(u.password, SALT_ROUNDS)
+      const hash = hashPasswordSync(u.password)
       const r = await client.query(
         "INSERT INTO user_credentials (email, password, role) VALUES ($1, $2, $3) RETURNING id",
         [u.email, hash, u.role]
