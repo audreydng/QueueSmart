@@ -1,22 +1,30 @@
 const db = require("../db/database")
 
-async function getHistory(_req, res) {
-  const result = await db.query(
-    `SELECT h.*, s.name as service_name
-     FROM history h JOIN services s ON h.service_id = s.id
-     ORDER BY h.created_at DESC`
-  )
-  return res.json(result.rows.map(normalizeHistory))
+async function getHistory(_req, res, next) {
+  try {
+    const result = await db.query(
+      `SELECT h.*, s.name as service_name
+       FROM history h JOIN services s ON h.service_id = s.id
+       ORDER BY h.created_at DESC`
+    )
+    return res.json(result.rows.map(normalizeHistory))
+  } catch (err) {
+    next(err)
+  }
 }
 
-async function getUserHistory(req, res) {
-  const result = await db.query(
-    `SELECT h.*, s.name as service_name
-     FROM history h JOIN services s ON h.service_id = s.id
-     WHERE h.user_id = $1 ORDER BY h.created_at DESC`,
-    [req.user.id]
-  )
-  return res.json(result.rows.map(normalizeHistory))
+async function getUserHistory(req, res, next) {
+  try {
+    const result = await db.query(
+      `SELECT h.*, s.name as service_name
+       FROM history h JOIN services s ON h.service_id = s.id
+       WHERE h.user_id = $1 ORDER BY h.created_at DESC`,
+      [req.user.id]
+    )
+    return res.json(result.rows.map(normalizeHistory))
+  } catch (err) {
+    next(err)
+  }
 }
 
 function normalizeHistory(h) {

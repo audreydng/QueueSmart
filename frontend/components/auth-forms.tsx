@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import Image from "next/image"
 
 export function LoginForm({ onSwitchToRegister }: { onSwitchToRegister: () => void }) {
@@ -104,7 +103,7 @@ export function RegisterForm({ onSwitchToLogin }: { onSwitchToLogin: () => void 
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
-  const [role, setRole] = useState<"user" | "staff" | "administrator">("user")
+  const role = "user"
   const [errors, setErrors] = useState<{
     name?: string
     email?: string
@@ -113,7 +112,7 @@ export function RegisterForm({ onSwitchToLogin }: { onSwitchToLogin: () => void 
     general?: string
   }>({})
   const passwordRules = {
-    minLength: password.length >= 6,
+    minLength: password.length >= 8,
     uppercase: /[A-Z]/.test(password),
     number: /\d/.test(password),
     special: /[!@#$%^&*(),.?":{}|<>_+=-]/.test(password),
@@ -133,7 +132,7 @@ export function RegisterForm({ onSwitchToLogin }: { onSwitchToLogin: () => void 
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) newErrors.email = "Enter a valid email address."
     if (!password.trim()) newErrors.password = "Password is required."
     else if (!isPasswordStrong) {
-      newErrors.password = "Password must be at least 6 characters and include an uppercase letter, number, and special character."
+      newErrors.password = "Password must be at least 8 characters and include an uppercase letter, number, and special character."
     }
     if (!confirmPassword.trim()) newErrors.confirmPassword = "Please confirm your password."
     else if (password !== confirmPassword) newErrors.confirmPassword = "Passwords do not match."
@@ -201,13 +200,13 @@ export function RegisterForm({ onSwitchToLogin }: { onSwitchToLogin: () => void 
               <Input
                 id="reg-password"
                 type="password"
-                placeholder="At least 6 characters"
+                placeholder="At least 8 characters"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 aria-invalid={!!errors.password}
               />
               {password && ( <ul className="text-xs space-y-1 mt-1">
-                  <PasswordRule valid={passwordRules.minLength} text="At least 6 characters" />
+                  <PasswordRule valid={passwordRules.minLength} text="At least 8 characters" />
                   <PasswordRule valid={passwordRules.uppercase} text="One uppercase letter" />
                   <PasswordRule valid={passwordRules.number} text="One number" />
                   <PasswordRule valid={passwordRules.special} text="One special character" />
@@ -228,19 +227,6 @@ export function RegisterForm({ onSwitchToLogin }: { onSwitchToLogin: () => void 
               {errors.confirmPassword && (
                 <p className="text-sm text-destructive">{errors.confirmPassword}</p>
               )}
-            </div>
-            <div className="flex flex-col gap-2">
-              <Label>Role</Label>
-              <Select value={role} onValueChange={(v) => setRole(v as "user" | "staff" | "administrator")}>
-                <SelectTrigger className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="user">User</SelectItem>
-                  <SelectItem value="staff">Staff</SelectItem>
-                  <SelectItem value="administrator">Administrator</SelectItem>
-                </SelectContent>
-              </Select>
             </div>
             <Button type="submit" className="w-full mt-2">
               Create Account
