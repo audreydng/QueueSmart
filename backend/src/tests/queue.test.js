@@ -361,3 +361,115 @@ describe("DELETE /api/queue/leave/:service_id", () => {
     expect(res.statusCode).toBe(404)
   })
 })
+
+describe("POST /api/queue/join — extra branches", () => {
+  test("rejects invalid type value", async () => {
+    const res = await request(app)
+      .post("/api/queue/join")
+      .set("Authorization", `Bearer ${aliceToken}`)
+      .send({ service_id: "11111111-1111-1111-1111-111111111111", type: "invalid" })
+    expect(res.statusCode).toBe(400)
+    expect(res.body.error).toMatch(/walk-in|appointment/i)
+  })
+
+  test("rejects appointment type without appointment_time", async () => {
+    const res = await request(app)
+      .post("/api/queue/join")
+      .set("Authorization", `Bearer ${aliceToken}`)
+      .send({ service_id: "11111111-1111-1111-1111-111111111111", type: "appointment" })
+    expect(res.statusCode).toBe(400)
+    expect(res.body.error).toMatch(/appointment_time/i)
+  })
+
+  test("joins with appointment type when appointment_time is provided", async () => {
+    const apptTime = new Date(Date.now() + 60 * 60 * 1000).toISOString()
+    const res = await request(app)
+      .post("/api/queue/join")
+      .set("Authorization", `Bearer ${aliceToken}`)
+      .send({ service_id: "11111111-1111-1111-1111-111111111111", type: "appointment", appointment_time: apptTime })
+    expect(res.statusCode).toBe(201)
+    expect(res.body.type).toBe("appointment")
+  })
+
+  test("returns 404 for non-existent service", async () => {
+    const res = await request(app)
+      .post("/api/queue/join")
+      .set("Authorization", `Bearer ${aliceToken}`)
+      .send({ service_id: "00000000-0000-0000-0000-000000000000" })
+    expect(res.statusCode).toBe(404)
+  })
+})
+
+describe("GET /api/queue/wait-time/:service_id — extra branches", () => {
+  test("returns 404 for unknown service", async () => {
+    const res = await request(app)
+      .get("/api/queue/wait-time/00000000-0000-0000-0000-000000000000")
+    expect(res.statusCode).toBe(404)
+  })
+
+  test("returns zero wait when queue is empty", async () => {
+    const res = await request(app)
+      .get("/api/queue/wait-time/11111111-1111-1111-1111-111111111111")
+    expect(res.statusCode).toBe(200)
+    expect(res.body.position).toBe(0)
+    expect(res.body.estimatedMinutes).toBe(0)
+  })
+})
+
+describe("PATCH /api/queue/emergency/:entryId", () => {
+  test("staff can toggle emergency status on", async () => {
+    await seedQueueEntry()
+    const entries = await request(app)
+      .get("/api/queue")
+      .set("Authorization", `Bearer ${staffToken}`)
+    const entryId = entries.body[0].id
+
+    const res = await request(app)
+      .patch(`/api/queue/emergency/${entryId}`)
+      .set("Authorization", `Bearer ${staffToken}`)
+    expect(res.statusCode).toBe(200)
+    expect(res.body.isEmergency).toBe(true)
+  })
+
+  test("staff can toggle emergency status off", async () => {
+    await seedQueueEntry()
+    const entries = await request(app)
+      .get("/api/queue")
+      .set("Authorization", `Bearer ${staffToken}`)
+    const entryId = entries.body[0].id
+
+    await request(app)
+      .patch(`/api/queue/emergency/${entryId}`)
+      .set("Authorization", `Bearer ${staffToken}`)
+
+    const res = await request(app)
+      .patch(`/api/queue/emergency/${entryId}`)
+      .set("Authorization", `Bearer ${staffToken}`)
+    expect(res.statusCode).toBe(200)
+    expect(res.body.isEmergency).toBe(false)
+  })
+
+  test("returns 404 for non-existent entry", async () => {
+    const res = await request(app)
+      .patch("/api/queue/emergency/00000000-0000-0000-0000-000000000000")
+      .set("Authorization", `Bearer ${staffToken}`)
+    expect(res.statusCode).toBe(404)
+  })
+
+  test("returns 403 for regular user", async () => {
+    const res = await request(app)
+      .patch("/api/queue/emergency/00000000-0000-0000-0000-000000000000")
+      .set("Authorization", `Bearer ${aliceToken}`)
+    expect(res.statusCode).toBe(403)
+  })
+})
+
+describe("PATCH /api/queue/status/:entryId — extra branches", () => {
+  test("returns 404 if entry not found", async () => {
+    const res = await request(app)
+      .patch("/api/queue/status/00000000-0000-0000-0000-000000000000")
+      .set("Authorization", `Bearer ${staffToken}`)
+      .send({ status: "almost-ready" })
+    expect(res.statusCode).toBe(404)
+  })
+})

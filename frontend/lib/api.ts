@@ -13,7 +13,12 @@ async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
     "Content-Type": "application/json",
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
   }
-  const res = await fetch(`${API_BASE}${path}`, { ...options, headers })
+  let res: Response
+  try {
+    res = await fetch(`${API_BASE}${path}`, { ...options, headers })
+  } catch {
+    throw new Error("Cannot connect to server. Make sure the backend is running.")
+  }
   if (!res.ok) {
     if (res.status === 401) {
       if (typeof window !== "undefined") {

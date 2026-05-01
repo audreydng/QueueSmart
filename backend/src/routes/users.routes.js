@@ -2,7 +2,7 @@ const express = require("express")
 const router = express.Router()
 const { getStaff, createStaff, deleteStaff } = require("../controllers/users.controller")
 const { verifyToken, requireRole } = require("../middleware/auth")
-const { requireFields } = require("../middleware/requireFields")
+const { requireFields } = require("../middleware/validate")
 
 router.get("/staff", verifyToken, requireRole("administrator"), getStaff)
 router.post("/staff", verifyToken, requireRole("administrator"), requireFields("name", "email", "password", "serviceId"), createStaff)

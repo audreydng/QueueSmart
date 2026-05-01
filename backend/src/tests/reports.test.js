@@ -2,7 +2,7 @@ require("dotenv").config()
 const request = require("supertest")
 const app = require("../app")
 const db = require("../db/database")
-const bcrypt = require("bcrypt")
+const { hashPasswordSync } = require("../utils/password")
 
 const SVC1 = "11111111-1111-1111-1111-111111111111"
 const SVC2 = "22222222-2222-2222-2222-222222222222"
@@ -15,7 +15,7 @@ let userIds = {}
 async function resetReportData() {
   await db.query(`
     TRUNCATE TABLE
-      queue_entries, queues, services,
+      appointments, queue_entries, queues, services,
       user_profiles, user_credentials,
       history, notifications
     RESTART IDENTITY CASCADE
@@ -40,7 +40,7 @@ async function resetReportData() {
 
   userIds = {}
   for (const user of users) {
-    const password = await bcrypt.hash(user.password, 10)
+    const password = hashPasswordSync(user.password)
     const result = await db.query(
       "INSERT INTO user_credentials (email, password, role) VALUES ($1, $2, $3) RETURNING id",
       [user.email, password, user.role]
@@ -163,5 +163,30 @@ describe("GET /api/reports/export.csv", () => {
     expect(res.text).toContain("Customer Participation")
     expect(res.text).toContain("Detailed History")
     expect(res.text).toContain("Average Served Wait Minutes,30")
+  })
+
+  test("rejects non-admin requests", async () => {
+    const res = await request(app)
+      .get("/api/reports/export.csv")
+      .set("Authorization", `Bearer ${staffToken}`)
+    expect(res.statusCode).toBe(403)
+  })
+})
+
+describe("GET /api/reports/export.pdf", () => {
+  test("returns PDF for administrators", async () => {
+    const res = await request(app)
+      .get("/api/reports/export.pdf?startDate=2026-02-01T00:00:00Z&endDate=2026-02-05T00:00:00Z")
+      .set("Authorization", `Bearer ${adminToken}`)
+
+    expect(res.statusCode).toBe(200)
+    expect(res.headers["content-type"]).toMatch(/application\/pdf/)
+  })
+
+  test("rejects non-admin requests", async () => {
+    const res = await request(app)
+      .get("/api/reports/export.pdf")
+      .set("Authorization", `Bearer ${staffToken}`)
+    expect(res.statusCode).toBe(403)
   })
 })

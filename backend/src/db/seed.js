@@ -187,7 +187,42 @@ async function seed() {
         historyCount++
       }
     }
-    console.log(`History seeded: ${historyCount} records spread over 180 days`)
+
+    // ── TODAY's history (May 1) – explicit records so today shows up in reports ──
+    const todayHistory = [
+      { email: "tessa@example.com",    svc: SVC.checkup,  hour: 8,  min: 10, wait: 12, left: false },
+      { email: "nora@example.com",     svc: SVC.checkup,  hour: 9,  min: 25, wait:  9, left: false },
+      { email: "sam@example.com",      svc: SVC.checkup,  hour: 10, min:  5, wait: 18, left: true  },
+      { email: "quinn@example.com",    svc: SVC.blood,    hour: 7,  min: 30, wait: 22, left: false },
+      { email: "priya@example.com",    svc: SVC.blood,    hour: 8,  min: 45, wait: 15, left: false },
+      { email: "omar@example.com",     svc: SVC.blood,    hour: 9,  min: 15, wait: 31, left: false },
+      { email: "marcus@example.com",   svc: SVC.vaccine,  hour: 9,  min:  0, wait: 28, left: false },
+      { email: "lina@example.com",     svc: SVC.vaccine,  hour: 10, min: 30, wait: 35, left: true  },
+      { email: "julia@example.com",    svc: SVC.consult,  hour: 9,  min: 20, wait: 42, left: false },
+      { email: "kai@example.com",      svc: SVC.consult,  hour: 11, min:  0, wait: 25, left: false },
+      { email: "hannah@example.com",   svc: SVC.imaging,  hour: 9,  min: 30, wait: 55, left: false },
+      { email: "rosa@example.com",     svc: SVC.pharmacy, hour: 8,  min: 20, wait:  6, left: false },
+      { email: "sam@example.com",      svc: SVC.pharmacy, hour: 9,  min: 40, wait:  8, left: false },
+      { email: "tessa@example.com",    svc: SVC.pharmacy, hour: 10, min: 50, wait:  5, left: true  },
+    ]
+
+    for (const r of todayHistory) {
+      const joinedAt = ts(0, r.hour, r.min)
+      await client.query(
+        `INSERT INTO history (user_id, service_id, status, joined_at, served_at, left_at, created_at)
+         VALUES ($1, $2, $3, $4, $5::timestamptz, $6::timestamptz, COALESCE($5::timestamptz, $6::timestamptz))`,
+        [
+          uid[r.email],
+          r.svc,
+          r.left ? "left" : "served",
+          joinedAt,
+          r.left ? null : addMins(joinedAt, r.wait),
+          r.left ? addMins(joinedAt, 5) : null,
+        ]
+      )
+      historyCount++
+    }
+    console.log(`History seeded: ${historyCount} records (${todayHistory.length} today, rest over 180 days)`)
 
     // ── APPOINTMENTS ─────────────────────────────────────────────────────────
     //
