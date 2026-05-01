@@ -44,8 +44,8 @@ interface AppContextType {
   getServiceById: (id: string) => Service | undefined
   getUnreadNotificationCount: () => number
   getUserNameById: (id: string) => string
-  createStaffMember: (payload: { name: string; email: string; password: string; serviceId: string }) => { success: boolean; error?: string }
-  removeStaffMember: (userId: string) => { success: boolean; error?: string }
+  createStaffMember: (payload: { name: string; email: string; password: string; serviceId: string }) => Promise<{ success: boolean; error?: string }>
+  removeStaffMember: (userId: string) => Promise<{ success: boolean; error?: string }>
 }
 
 const AppContext = createContext<AppContextType | null>(null)
@@ -132,9 +132,18 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     } catch { /* ignore */ }
   }, [])
 
+  const fetchStaff = useCallback(async () => {
+    try {
+      const data = await api.users.getStaff() as User[]
+      setUsers(data)
+    } catch { /* not admin or not logged in */ }
+  }, [])
+
   const refreshAll = useCallback(async (user: User, svcs: Service[]) => {
-    await Promise.all([fetchQueue(user), fetchNotifications(), fetchHistory(user, svcs), fetchAppointments()])
-  }, [fetchQueue, fetchNotifications, fetchHistory, fetchAppointments])
+    const tasks = [fetchQueue(user), fetchNotifications(), fetchHistory(user, svcs), fetchAppointments()]
+    if (user.role === "administrator") tasks.push(fetchStaff())
+    await Promise.all(tasks)
+  }, [fetchQueue, fetchNotifications, fetchHistory, fetchAppointments, fetchStaff])
 
   // ─── On mount: restore session ────────────────────────────────────────────
 
@@ -339,41 +348,36 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       )
   }, [currentUser, appointments])
 
-  // ─── Staff management (local only — no backend) ───────────────────────────
+  // ─── Staff management ─────────────────────────────────────────────────────
 
   const createStaffMember = useCallback(
-    ({ name, email, password, serviceId }: { name: string; email: string; password: string; serviceId: string }) => {
-      if (users.some((u: User) => u.email.toLowerCase() === email.toLowerCase())) {
-        return { success: false, error: "Email already registered." }
+    async ({ name, email, password, serviceId }: { name: string; email: string; password: string; serviceId: string }) => {
+      try {
+        const newStaff = await api.users.createStaff({ name, email, password, serviceId }) as User
+        setUsers((prev: User[]) => [...prev, newStaff])
+        return { success: true }
+      } catch (err) {
+        const msg = (err as Error).message
+        if (msg.includes("409") || msg.toLowerCase().includes("already")) {
+          return { success: false, error: "Email already registered." }
+        }
+        return { success: false, error: msg || "Failed to create employee." }
       }
-      const newStaff: User = {
-        id: `staff-${generateId()}`,
-        name: name.trim(),
-        email: email.trim(),
-        password,
-        role: "staff",
-        serviceId,
-        createdAt: new Date().toISOString(),
-      }
-      setUsers((prev: User[]) => [...prev, newStaff])
-      return { success: true }
     },
-    [users]
+    []
   )
 
   const removeStaffMember = useCallback(
-    (userId: string) => {
-      const target = users.find((u: User) => u.id === userId)
-      if (!target || target.role !== "staff") {
-        return { success: false, error: "Staff member not found." }
+    async (userId: string) => {
+      try {
+        await api.users.deleteStaff(userId)
+        setUsers((prev: User[]) => prev.filter((u: User) => u.id !== userId))
+        return { success: true }
+      } catch (err) {
+        return { success: false, error: (err as Error).message || "Failed to remove employee." }
       }
-      if (currentUser?.id === userId) {
-        return { success: false, error: "You cannot remove your own account." }
-      }
-      setUsers((prev: User[]) => prev.filter((u: User) => u.id !== userId))
-      return { success: true }
     },
-    [users, currentUser]
+    []
   )
 
   // ─── Helpers ──────────────────────────────────────────────────────────────
