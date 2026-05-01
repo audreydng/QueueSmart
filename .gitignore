@@ -1,17 +1,13 @@
-<<<<<<< HEAD
 node_modules/
 .env
+.env.local
+.env.*.local
 coverage/
-=======
-node_modules
 .next
 dist
 build
 .DS_Store
 *.log
-.env.local
-.env.*.local
 package-lock.json
 frontend/pnpm-lock.yaml
 *.tsbuildinfo
->>>>>>> e2a9d0994dbcc5c300a5f99c2016507dd5a202fa
