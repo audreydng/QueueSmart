@@ -1,4 +1,4 @@
-import type { ReportData } from "@/lib/types"
+import type { ReportData, User } from "@/lib/types"
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? "http://localhost:5000/api"
 
@@ -129,6 +129,14 @@ export const api = {
       }),
     cancel: (id: string) =>
       apiFetch<unknown>(`/appointments/${id}/cancel`, { method: "PATCH" }),
+  },
+
+  users: {
+    getStaff: () => apiFetch<User[]>("/users/staff"),
+    createStaff: (payload: { name: string; email: string; password: string; serviceId: string }) =>
+      apiFetch<User>("/users/staff", { method: "POST", body: JSON.stringify(payload) }),
+    deleteStaff: (id: string) =>
+      apiFetch<{ success: boolean }>(`/users/staff/${id}`, { method: "DELETE" }),
   },
 
   reports: {

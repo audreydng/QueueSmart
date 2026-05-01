@@ -8,6 +8,7 @@ const notificationsRoutes = require("./routes/notifications.routes")
 const historyRoutes = require("./routes/history.routes")
 const reportsRoutes = require("./routes/reports.routes")
 const appointmentsRoutes = require("./routes/appointments.routes")
+const usersRoutes = require("./routes/users.routes")
 
 const app = express()
 
@@ -22,6 +23,7 @@ app.use("/api/notifications", notificationsRoutes)
 app.use("/api/history", historyRoutes)
 app.use("/api/reports", reportsRoutes)
 app.use("/api/appointments", appointmentsRoutes)
+app.use("/api/users", usersRoutes)
 
 // Health check
 app.get("/api/health", (req, res) => {

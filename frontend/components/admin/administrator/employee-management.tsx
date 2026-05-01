@@ -26,7 +26,7 @@ import { Plus, Trash2 } from "lucide-react"
 function EmployeeForm({
   onSubmit,
 }: {
-  onSubmit: (values: { name: string; email: string; password: string; serviceId: string }) => { success: boolean; error?: string }
+  onSubmit: (values: { name: string; email: string; password: string; serviceId: string }) => Promise<{ success: boolean; error?: string }>
 }) {
   const { services } = useApp()
   const [name, setName] = useState("")
@@ -50,7 +50,7 @@ function EmployeeForm({
     return nextErrors
   }
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     const nextErrors = validate()
     if (Object.keys(nextErrors).length > 0) {
@@ -58,7 +58,7 @@ function EmployeeForm({
       return
     }
 
-    const result = onSubmit({
+    const result = await onSubmit({
       name: name.trim(),
       email: email.trim(),
       password,
@@ -145,6 +145,7 @@ function EmployeeForm({
 export function EmployeeManagement() {
   const { users, services, createStaffMember, removeStaffMember } = useApp()
   const [createOpen, setCreateOpen] = useState(false)
+  const [removingId, setRemovingId] = useState<string | null>(null)
 
   const staffUsers = useMemo(() => users.filter((user) => user.role === "staff"), [users])
 
@@ -175,8 +176,8 @@ export function EmployeeManagement() {
               <DialogDescription>Create a staff account and assign branch.</DialogDescription>
             </DialogHeader>
             <EmployeeForm
-              onSubmit={(values) => {
-                const result = createStaffMember(values)
+              onSubmit={async (values) => {
+                const result = await createStaffMember(values)
                 if (result.success) {
                   setCreateOpen(false)
                 }
@@ -217,7 +218,6 @@ export function EmployeeManagement() {
                     <TableCell>
                       <div className="text-sm">
                         <p>{staff.email}</p>
-                        <p className="text-xs text-muted-foreground">Password: {staff.password ?? "Not set"}</p>
                       </div>
                     </TableCell>
                     <TableCell>
