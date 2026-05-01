@@ -80,7 +80,7 @@ export const api = {
     getAll: () => apiFetch<unknown[]>("/queue"),
     getMy: () => apiFetch<unknown | null>("/queue/my"),
     getWaitTime: (serviceId: string) =>
-      apiFetch<{ service_id: string; position: number; estimatedMinutes: number }>(`/queue/wait-time/${serviceId}`),
+      apiFetch<{ service_id: string; position: number; estimatedMinutes: number; expectedDuration: number }>(`/queue/wait-time/${serviceId}`),
     join: (serviceId: string, type: "walk-in" | "appointment" = "walk-in", appointmentTime?: string) =>
       apiFetch<unknown>("/queue/join", {
         method: "POST",

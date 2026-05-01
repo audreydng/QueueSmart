@@ -49,6 +49,11 @@ function AppContent() {
   const activeView = currentView || defaultView
 
   function renderContent() {
+    if (activeView.startsWith("queue-management:")) {
+      const serviceId = activeView.split(":")[1]
+      return <QueueManagement initialServiceId={serviceId} />
+    }
+
     switch (activeView) {
       // User views
       case "dashboard":

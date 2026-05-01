@@ -65,7 +65,7 @@ export function StaffDashboard({ onNavigate }: { onNavigate: (view: string) => v
                 </div>
                 <div className="flex items-center gap-2">
                   <Badge variant="secondary">{queue.length}</Badge>
-                  <Button size="sm" onClick={() => onNavigate("queue-management")}>
+                  <Button size="sm" onClick={() => onNavigate(`queue-management:${service.id}`)}>
                     Manage queue
                   </Button>
                 </div>

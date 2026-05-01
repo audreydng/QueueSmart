@@ -10,7 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { ChevronUp, ChevronDown, X, UserCheck, Users, UserPlus, CalendarClock, Siren } from "lucide-react"
 import type { QueueStatus } from "@/lib/types"
 
-export function QueueManagement() {
+export function QueueManagement({ initialServiceId }: { initialServiceId?: string }) {
   const {
     services,
     getQueueForService,
@@ -21,7 +21,7 @@ export function QueueManagement() {
     toggleEmergency,
     getUserNameById,
   } = useApp()
-  const [selectedServiceId, setSelectedServiceId] = useState(services[0]?.id ?? "")
+  const [selectedServiceId, setSelectedServiceId] = useState(initialServiceId ?? services[0]?.id ?? "")
 
   const selectedService = services.find((s) => s.id === selectedServiceId)
   const queue = getQueueForService(selectedServiceId).sort((a, b) => {

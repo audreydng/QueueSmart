@@ -315,17 +315,24 @@ async function getWaitTime(req, res) {
     const { service_id } = req.params;
 
     const result = await pool.query(
-      `SELECT COUNT(*) AS position
-       FROM queue_entries
-       WHERE service_id = $1
-       AND status IN ('waiting', 'almost-ready')`,
+      `SELECT COUNT(qe.id) AS total, s.expected_duration
+       FROM services s
+       LEFT JOIN queue_entries qe
+         ON qe.service_id = s.id AND qe.status IN ('waiting', 'almost-ready')
+       WHERE s.id = $1
+       GROUP BY s.expected_duration`,
       [service_id]
     );
 
-    const position = parseInt(result.rows[0].position, 10);
-    const estimatedMinutes = position * 5;
+    if (!result.rows[0]) {
+      return res.status(404).json({ error: "Service not found" });
+    }
 
-    res.json({ service_id, position, estimatedMinutes });
+    const total = parseInt(result.rows[0].total, 10);
+    const expectedDuration = parseInt(result.rows[0].expected_duration, 10) || 15;
+    const estimatedMinutes = total * expectedDuration;
+
+    res.json({ service_id, position: total, estimatedMinutes, expectedDuration });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Failed to calculate wait time" });

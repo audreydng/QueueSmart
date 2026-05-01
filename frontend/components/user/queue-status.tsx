@@ -13,6 +13,7 @@ export function QueueStatusScreen({ onNavigate }: { onNavigate: (view: string) =
   const { getUserQueueEntry, getServiceById, leaveQueue, refreshQueue } = useApp()
   const entry = getUserQueueEntry()
   const [totalInQueue, setTotalInQueue] = useState<number>(0)
+  const [estimatedWaitFromServer, setEstimatedWaitFromServer] = useState<number | null>(null)
 
   useEffect(() => {
     if (!entry) return
@@ -23,7 +24,11 @@ export function QueueStatusScreen({ onNavigate }: { onNavigate: (view: string) =
       await refreshQueue()
       if (!active) return
       api.queue.getWaitTime(serviceId)
-        .then((data) => { if (active) setTotalInQueue(data.position) })
+        .then((data) => {
+          if (!active) return
+          setTotalInQueue(data.position)
+          setEstimatedWaitFromServer(data.expectedDuration)
+        })
         .catch(() => {})
     }
 
@@ -59,7 +64,9 @@ export function QueueStatusScreen({ onNavigate }: { onNavigate: (view: string) =
   }
 
   const service = getServiceById(entry.serviceId)
-  const estimatedWait = (service?.expectedDuration ?? 15) * entry.position
+  const durationPerPerson = estimatedWaitFromServer ?? service?.expectedDuration ?? 15
+  const peopleAhead = Math.max(0, entry.position - 1)
+  const estimatedWait = peopleAhead * durationPerPerson
 
   const statusLabels: Record<string, string> = {
     waiting: "Waiting",
@@ -72,8 +79,9 @@ export function QueueStatusScreen({ onNavigate }: { onNavigate: (view: string) =
     served: "bg-success/15 text-success border border-success/30",
   }
 
-  // Calculate progress: higher position = less progress
-  const progressValue = totalInQueue > 0 ? ((totalInQueue - entry.position + 1) / totalInQueue) * 100 : 0
+  const progressValue = totalInQueue > 0
+    ? Math.max(0, Math.min(100, ((totalInQueue - entry.position + 1) / totalInQueue) * 100))
+    : 0
 
   return (
     <div className="flex flex-col gap-6">
@@ -120,7 +128,9 @@ export function QueueStatusScreen({ onNavigate }: { onNavigate: (view: string) =
             <div className="flex items-center gap-3 rounded-lg border border-border px-4 py-3">
               <Clock className="h-4 w-4 text-muted-foreground shrink-0" />
               <div>
-                <p className="text-sm font-medium text-foreground">est. {estimatedWait} min</p>
+                <p className="text-sm font-medium text-foreground">
+                  {entry.position === 1 ? "You're next!" : `est. ${estimatedWait} min`}
+                </p>
                 <p className="text-xs text-muted-foreground">Estimated wait</p>
               </div>
             </div>

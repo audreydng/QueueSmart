@@ -18,7 +18,7 @@ export function JoinQueueScreen({ onNavigate }: { onNavigate: (view: string) => 
   const [selectedService, setSelectedService] = useState<Service | null>(null)
   const [joinType, setJoinType] = useState<"walk-in" | "appointment">("walk-in")
   const [loading, setLoading] = useState(false)
-  const [queueCounts, setQueueCounts] = useState<Record<string, number>>({})
+  const [queueData, setQueueData] = useState<Record<string, { count: number; estimatedMinutes: number }>>({})
 
   const todayStr = new Date().toISOString().split("T")[0]
 
@@ -27,25 +27,25 @@ export function JoinQueueScreen({ onNavigate }: { onNavigate: (view: string) => 
     Promise.all(
       openServices.map((s) =>
         api.queue.getWaitTime(s.id)
-          .then((data) => ({ id: s.id, count: data.position }))
-          .catch(() => ({ id: s.id, count: 0 }))
+          .then((data) => ({ id: s.id, count: data.position, estimatedMinutes: data.estimatedMinutes }))
+          .catch(() => ({ id: s.id, count: 0, estimatedMinutes: 0 }))
       )
     ).then((results) => {
-      const map: Record<string, number> = {}
-      results.forEach((r) => { map[r.id] = r.count })
-      setQueueCounts(map)
+      const map: Record<string, { count: number; estimatedMinutes: number }> = {}
+      results.forEach((r) => { map[r.id] = { count: r.count, estimatedMinutes: r.estimatedMinutes } })
+      setQueueData(map)
     })
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [openServices.length])
 
   function getQueueLength(serviceId: string) {
-    return queueCounts[serviceId] ?? 0
+    return queueData[serviceId]?.count ?? 0
   }
 
   function getEstimatedWait(serviceId: string) {
-    const service = services.find((s) => s.id === serviceId)
-    const length = getQueueLength(serviceId)
-    return Math.min(Math.ceil((service?.expectedDuration ?? 15) * length), 180)
+    const data = queueData[serviceId]
+    if (!data) return 0
+    return Math.min(data.estimatedMinutes, 240)
   }
 
   const alreadyInQueue = !!currentEntry
