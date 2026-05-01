@@ -73,8 +73,8 @@ export function AdministratorDashboard({ onNavigate }: { onNavigate: (view: stri
             </CardAction>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold">CSV</p>
-            <p className="text-xs text-muted-foreground">Export queue usage and customer history.</p>
+            <p className="text-2xl font-bold">PDF / CSV</p>
+            <p className="text-xs text-muted-foreground">Export queue usage and customer history as PDF or CSV.</p>
           </CardContent>
         </Card>
       </div>

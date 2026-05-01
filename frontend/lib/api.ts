@@ -136,5 +136,7 @@ export const api = {
       apiFetch<ReportData>(`/reports${buildQuery(filters)}`),
     exportCsv: (filters: { startDate?: string; endDate?: string; serviceId?: string | null }) =>
       apiFetchBlob(`/reports/export.csv${buildQuery(filters)}`),
+    exportPdf: (filters: { startDate?: string; endDate?: string; serviceId?: string | null }) =>
+      apiFetchBlob(`/reports/export.pdf${buildQuery(filters)}`),
   },
 }

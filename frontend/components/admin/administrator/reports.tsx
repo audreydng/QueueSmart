@@ -69,6 +69,7 @@ export function Reports() {
   const [report, setReport] = useState<ReportData | null>(null)
   const [loading, setLoading] = useState(false)
   const [exporting, setExporting] = useState(false)
+  const [exportingPdf, setExportingPdf] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [appliedFilters, setAppliedFilters] = useState<ReportFilterValues>({
     startDate: initialRange.startDate,
@@ -119,6 +120,26 @@ export function Reports() {
     ? "All services"
     : services.find((service) => service.id === appliedFilters.serviceId)?.name ?? "Selected service"
 
+  async function exportPdf() {
+    setExportingPdf(true)
+    setError(null)
+    try {
+      const blob = await api.reports.exportPdf(appliedApiFilters)
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement("a")
+      link.href = url
+      link.download = `queuesmart-report-${appliedFilters.startDate}-to-${appliedFilters.endDate}.pdf`
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      URL.revokeObjectURL(url)
+    } catch (err) {
+      setError((err as Error).message)
+    } finally {
+      setExportingPdf(false)
+    }
+  }
+
   async function exportCsv() {
     setExporting(true)
     setError(null)
@@ -148,10 +169,16 @@ export function Reports() {
           <h1 className="text-2xl font-bold text-foreground">Reports</h1>
           <p className="text-muted-foreground mt-1">Generate administrator reports for customer history, services, and queue usage.</p>
         </div>
-        <Button variant="outline" onClick={exportCsv} disabled={!report || exporting || loading}>
-          <Download className="mr-2 h-4 w-4" />
-          {exporting ? "Exporting" : "Export CSV"}
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={exportPdf} disabled={!report || exportingPdf || loading}>
+            <FileText className="mr-2 h-4 w-4" />
+            {exportingPdf ? "Exporting..." : "Export PDF"}
+          </Button>
+          <Button variant="outline" onClick={exportCsv} disabled={!report || exporting || loading}>
+            <Download className="mr-2 h-4 w-4" />
+            {exporting ? "Exporting..." : "Export CSV"}
+          </Button>
+        </div>
       </div>
 
       <Card>

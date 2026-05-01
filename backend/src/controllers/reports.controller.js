@@ -1,3 +1,4 @@
+const PDFDocument = require("pdfkit")
 const db = require("../db/database")
 
 const ACTIVE_QUEUE_STATUSES = ["waiting", "almost-ready"]
@@ -392,4 +393,210 @@ async function exportReportCsv(req, res) {
   return res.send(csv)
 }
 
-module.exports = { getReport, exportReportCsv, fetchReportData }
+// ─── PDF export ──────────────────────────────────────────────────────────────
+
+const PDF = {
+  margin: 50,
+  width: 595.28,
+  height: 841.89,
+  colors: {
+    primary: "#1e40af",
+    title: "#0f172a",
+    body: "#1e293b",
+    muted: "#64748b",
+    border: "#e2e8f0",
+    headerBg: "#eff6ff",
+    altRow: "#f8fafc",
+  },
+}
+PDF.contentWidth = PDF.width - PDF.margin * 2
+
+function fmtMin(v) {
+  if (v === null || v === undefined) return "N/A"
+  const n = Number(v)
+  return `${n.toFixed(n % 1 === 0 ? 0 : 1)} min`
+}
+
+function fmtDate(v) {
+  if (!v) return "None"
+  return new Date(v).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+}
+
+function fmtDateTime(v) {
+  if (!v) return "None"
+  return new Date(v).toLocaleString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })
+}
+
+function pdfTable(doc, { headers, colWidths, rows }) {
+  const M = PDF.margin
+  const C = PDF.colors
+  const RH = 18
+  const PX = 5
+  const PY = 4
+  const TW = colWidths.reduce((a, b) => a + b, 0)
+
+  function drawHeader(y) {
+    doc.rect(M, y, TW, RH).fill(C.headerBg)
+    doc.fontSize(7.5).font("Helvetica-Bold").fillColor(C.title)
+    let cx = M
+    headers.forEach((h, i) => {
+      doc.text(h, cx + PX, y + PY, { width: colWidths[i] - PX * 2, lineBreak: false, ellipsis: true })
+      cx += colWidths[i]
+    })
+  }
+
+  let y = doc.y
+  drawHeader(y)
+  y += RH
+
+  if (rows.length === 0) {
+    doc.fontSize(8).font("Helvetica").fillColor(C.muted)
+      .text("No data for selected filters.", M, y + PY, { width: TW })
+    doc.y = y + RH + 4
+    return
+  }
+
+  rows.forEach((row, idx) => {
+    if (y + RH > PDF.height - M - 30) {
+      doc.addPage()
+      y = M
+      drawHeader(y)
+      y += RH
+    }
+
+    if (idx % 2 === 1) doc.rect(M, y, TW, RH).fill(C.altRow)
+
+    doc.fontSize(7.5).font("Helvetica").fillColor(C.body)
+    let cx = M
+    row.forEach((cell, i) => {
+      doc.text(String(cell ?? ""), cx + PX, y + PY, {
+        width: colWidths[i] - PX * 2,
+        lineBreak: false,
+        ellipsis: true,
+      })
+      cx += colWidths[i]
+    })
+
+    doc.moveTo(M, y + RH).lineTo(M + TW, y + RH).strokeColor(C.border).lineWidth(0.5).stroke()
+    y += RH
+  })
+
+  doc.y = y + 8
+}
+
+function pdfSection(doc, title) {
+  if (doc.y + 70 > PDF.height - PDF.margin - 30) doc.addPage()
+  doc.y += 16
+  doc.fontSize(11).font("Helvetica-Bold").fillColor(PDF.colors.title).text(title, PDF.margin, doc.y)
+  doc.y += 4
+}
+
+async function exportReportPdf(req, res) {
+  try {
+    const filters = getResolvedFilters(req.query)
+    if (filters.error) return res.status(400).json({ error: filters.error })
+
+    const report = await fetchReportData(filters)
+    const M = PDF.margin
+    const W = PDF.contentWidth
+    const C = PDF.colors
+
+    const doc = new PDFDocument({ size: "A4", margin: M, bufferPages: true })
+    res.setHeader("Content-Type", "application/pdf")
+    res.setHeader("Content-Disposition", "attachment; filename=\"queuesmart-report.pdf\"")
+    doc.pipe(res)
+
+    // Header
+    doc.fontSize(20).font("Helvetica-Bold").fillColor(C.primary).text("QueueSmart", M, M)
+    doc.fontSize(20).font("Helvetica-Bold").fillColor(C.title).text("Report", M, M, { align: "right", width: W })
+    doc.fontSize(9).font("Helvetica").fillColor(C.muted).text("Queue Management System", M, doc.y + 2)
+
+    const hLineY = doc.y + 10
+    doc.moveTo(M, hLineY).lineTo(M + W, hLineY).strokeColor(C.primary).lineWidth(1.5).stroke()
+    doc.y = hLineY + 14
+
+    // Info
+    const sd = fmtDate(filters.startDate)
+    const ed = fmtDate(filters.endDate)
+    const svcLabel = filters.serviceId ? `Service ${filters.serviceId}` : "All services"
+    const genAt = new Date().toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" })
+    doc.fontSize(8.5).font("Helvetica").fillColor(C.body)
+      .text(`Period: ${sd} – ${ed}     Service: ${svcLabel}     Generated: ${genAt}`, M, doc.y, { width: W })
+    doc.y += 4
+    doc.moveTo(M, doc.y).lineTo(M + W, doc.y).strokeColor(C.border).lineWidth(0.5).stroke()
+    doc.y += 14
+
+    // Summary
+    doc.fontSize(11).font("Helvetica-Bold").fillColor(C.title).text("Summary", M, doc.y)
+    doc.y += 8
+
+    const s = report.summary
+    const summaryRows = [
+      ["Total Served", s.totalCustomersServed, "Total Left", s.totalLeft],
+      ["Participations", s.totalQueueParticipations, "Active Now", s.activeQueueCount],
+      ["Avg Wait Time", fmtMin(s.averageServedWaitMinutes), null, null],
+    ]
+    summaryRows.forEach(([k1, v1, k2, v2]) => {
+      const y = doc.y
+      doc.fontSize(8.5).font("Helvetica").fillColor(C.muted).text(k1, M, y, { width: 110, lineBreak: false })
+      doc.fontSize(8.5).font("Helvetica-Bold").fillColor(C.body).text(String(v1), M + 115, y, { width: 80, lineBreak: false })
+      if (k2 !== null) {
+        doc.fontSize(8.5).font("Helvetica").fillColor(C.muted).text(k2, M + W / 2, y, { width: 110, lineBreak: false })
+        doc.fontSize(8.5).font("Helvetica-Bold").fillColor(C.body).text(String(v2), M + W / 2 + 115, y, { width: 80, lineBreak: false })
+      }
+      doc.y = y + 13
+    })
+
+    // Service Activity
+    pdfSection(doc, "Service Activity")
+    pdfTable(doc, {
+      headers: ["Service", "Priority", "Active", "Served", "Left", "Total", "Avg Wait"],
+      colWidths: [145, 62, 44, 52, 44, 52, 96],
+      rows: report.services.map((sv) => [
+        sv.name, sv.priority, sv.activeQueueCount, sv.servedCount, sv.leftCount,
+        sv.totalParticipations, fmtMin(sv.averageServedWaitMinutes),
+      ]),
+    })
+
+    // Customer Participation
+    pdfSection(doc, "Customer Participation")
+    pdfTable(doc, {
+      headers: ["Customer", "Email", "Total", "Served", "Left", "Active", "Last Activity"],
+      colWidths: [100, 140, 38, 44, 38, 38, 97],
+      rows: report.users.map((u) => [
+        u.name, u.email, u.totalParticipations, u.servedCount, u.leftCount, u.activeCount,
+        fmtDate(u.lastActivityAt),
+      ]),
+    })
+
+    // History
+    pdfSection(doc, "Queue Participation History")
+    pdfTable(doc, {
+      headers: ["Customer", "Service", "Status", "Joined", "Completed", "Wait"],
+      colWidths: [100, 105, 52, 98, 95, 45],
+      rows: report.history.map((h) => [
+        h.customerName, h.serviceName, h.status,
+        fmtDateTime(h.joinedAt), fmtDateTime(h.completedAt), fmtMin(h.waitMinutes),
+      ]),
+    })
+
+    // Page numbers — footer must stay within content area (below PDF.height - M triggers auto-page)
+    const range = doc.bufferedPageRange()
+    for (let i = 0; i < range.count; i++) {
+      doc.switchToPage(range.start + i)
+      doc.fontSize(7.5).font("Helvetica").fillColor(C.muted)
+        .text(
+          `Page ${i + 1} of ${range.count}  |  QueueSmart Report`,
+          M, PDF.height - M - 20,
+          { align: "center", width: W }
+        )
+    }
+
+    doc.end()
+  } catch (err) {
+    console.error("[exportReportPdf]", err)
+    if (!res.headersSent) res.status(500).json({ error: "Failed to generate PDF report" })
+  }
+}
+
+module.exports = { getReport, exportReportCsv, exportReportPdf, fetchReportData }
