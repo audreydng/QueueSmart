@@ -395,7 +395,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     (serviceId: string) =>
       queueEntries
         .filter((e: QueueEntry) => e.serviceId === serviceId && (e.status === "waiting" || e.status === "almost-ready"))
-        .sort((a: QueueEntry, b: QueueEntry) => a.position - b.position),
+        .sort((a: QueueEntry, b: QueueEntry) => {
+          if (a.isEmergency !== b.isEmergency) return a.isEmergency ? -1 : 1
+          return a.position - b.position
+        }),
     [queueEntries]
   )
 

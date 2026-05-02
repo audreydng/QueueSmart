@@ -170,7 +170,7 @@ describe("POST /api/queue/serve-next/:service_id", () => {
   test("should serve a user who is in 'almost-ready' status", async () => {
     await seedQueueEntry(); //Alice joins (status: waiting)
 
-    // et the entry ID
+    //Get the entry ID
     const entries = await request(app)
       .get("/api/queue")
       .set("Authorization", `Bearer ${staffToken}`);
@@ -333,6 +333,12 @@ describe("PATCH /api/queue/reorder/:service_id", () => {
       .set("Authorization", `Bearer ${staffToken}`)
 
     const entryId = entries.body[0].id
+    const secondEntryId = entries.body[1].id
+
+    await request(app)
+      .patch(`/api/queue/status/${entryId}`)
+      .set("Authorization", `Bearer ${staffToken}`)
+      .send({ status: "almost-ready" })
 
     const res = await request(app)
       .patch("/api/queue/reorder/11111111-1111-1111-1111-111111111111")
@@ -340,6 +346,42 @@ describe("PATCH /api/queue/reorder/:service_id", () => {
       .send({ entryId, direction: "down" })
 
     expect(res.statusCode).toBe(200)
+
+    const reordered = await request(app)
+      .get("/api/queue")
+      .set("Authorization", `Bearer ${staffToken}`)
+
+    expect(reordered.body.map((entry) => entry.id)).toEqual([secondEntryId, entryId])
+    expect(reordered.body.map((entry) => entry.position)).toEqual([1, 2])
+    expect(reordered.body[1].status).toBe("waiting")
+  })
+
+  test("serve next follows manually reordered queue", async () => {
+    await seedQueueEntry()
+
+    await request(app)
+      .post("/api/queue/join")
+      .set("Authorization", `Bearer ${danaToken}`)
+      .send({ service_id: "11111111-1111-1111-1111-111111111111" })
+
+    const entries = await request(app)
+      .get("/api/queue")
+      .set("Authorization", `Bearer ${staffToken}`)
+
+    const firstEntryId = entries.body[0].id
+    const secondEntryId = entries.body[1].id
+
+    await request(app)
+      .patch("/api/queue/reorder/11111111-1111-1111-1111-111111111111")
+      .set("Authorization", `Bearer ${staffToken}`)
+      .send({ entryId: firstEntryId, direction: "down" })
+
+    const res = await request(app)
+      .post("/api/queue/serve-next/11111111-1111-1111-1111-111111111111")
+      .set("Authorization", `Bearer ${staffToken}`)
+
+    expect(res.statusCode).toBe(200)
+    expect(res.body.id).toBe(secondEntryId)
   })
 
   test("should return 404 if entry not found", async () => {

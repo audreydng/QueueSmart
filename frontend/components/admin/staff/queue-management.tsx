@@ -26,8 +26,14 @@ export function QueueManagement({ initialServiceId }: { initialServiceId?: strin
   const selectedService = services.find((s) => s.id === selectedServiceId)
   const queue = getQueueForService(selectedServiceId).sort((a, b) => {
     if (a.isEmergency !== b.isEmergency) return a.isEmergency ? -1 : 1
-    return 0
+    return a.position - b.position
   })
+
+  function canMoveEntry(index: number, direction: "up" | "down") {
+    const entry = queue[index]
+    const target = queue[direction === "up" ? index - 1 : index + 1]
+    return !!entry && !!target && entry.isEmergency === target.isEmergency
+  }
 
   const statusLabels: Record<QueueStatus, string> = {
     waiting: "Waiting",
@@ -183,7 +189,7 @@ export function QueueManagement({ initialServiceId }: { initialServiceId?: strin
                               size="sm"
                               variant="ghost"
                               onClick={() => reorderQueue(selectedServiceId, entry.id, "up")}
-                              disabled={idx === 0}
+                              disabled={!canMoveEntry(idx, "up")}
                               aria-label="Move up"
                             >
                               <ChevronUp className="h-3.5 w-3.5" />
@@ -192,7 +198,7 @@ export function QueueManagement({ initialServiceId }: { initialServiceId?: strin
                               size="sm"
                               variant="ghost"
                               onClick={() => reorderQueue(selectedServiceId, entry.id, "down")}
-                              disabled={idx === queue.length - 1}
+                              disabled={!canMoveEntry(idx, "down")}
                               aria-label="Move down"
                             >
                               <ChevronDown className="h-3.5 w-3.5" />

@@ -1,6 +1,10 @@
 const pool = require("../db/database");
 const { createNotification } = require("./notifications.controller");
 
+const ACTIVE_QUEUE_STATUSES = "('waiting', 'almost-ready')";
+const QUEUE_ORDER = "is_emergency DESC, position ASC, joined_at ASC, id ASC";
+const QUEUE_ORDER_QE = "qe.is_emergency DESC, qe.position ASC, qe.joined_at ASC, qe.id ASC";
+
 function normalizeEntry(e) {
   return {
     id: e.id,
@@ -22,21 +26,18 @@ function normalizeEntry(e) {
 async function getQueue(_req, res) {
   try {
     const result = await pool.query(
-      `SELECT qe.*, s.name AS service_name,
-         (SELECT COUNT(*) + 1
-          FROM queue_entries q2
-          WHERE q2.queue_id = qe.queue_id
-            AND q2.status IN ('waiting', 'almost-ready')
-            AND q2.id != qe.id
-            AND (
-              q2.is_emergency > qe.is_emergency
-              OR (q2.is_emergency = qe.is_emergency AND q2.joined_at < qe.joined_at)
-            )
-         ) AS computed_position
-       FROM queue_entries qe
-       JOIN services s ON qe.service_id = s.id
-       WHERE qe.status IN ('waiting', 'almost-ready')
-       ORDER BY qe.queue_id, computed_position ASC`
+      `SELECT *
+       FROM (
+         SELECT qe.*, s.name AS service_name,
+           ROW_NUMBER() OVER (
+             PARTITION BY qe.queue_id
+             ORDER BY ${QUEUE_ORDER_QE}
+           ) AS computed_position
+         FROM queue_entries qe
+         JOIN services s ON qe.service_id = s.id
+         WHERE qe.status IN ${ACTIVE_QUEUE_STATUSES}
+       ) ranked
+       ORDER BY ranked.queue_id, ranked.computed_position ASC`
     );
     res.json(result.rows.map(normalizeEntry));
   } catch (err) {
@@ -163,7 +164,7 @@ async function leaveQueue(req, res) {
   }
 }
 
-//SERVE NEXT USER — priority: emergency → appointment due → walk-in → future appointment
+//SERVE NEXT USER — priority: emergency > manual queue position
 async function serveNext(req, res) {
   try {
     const { service_id } = req.params;
@@ -182,15 +183,8 @@ async function serveNext(req, res) {
     const result = await pool.query(
       `SELECT * FROM queue_entries
        WHERE queue_id = $1
-       AND status IN ('waiting', 'almost-ready')
-       ORDER BY
-         is_emergency DESC,
-         CASE
-           WHEN type = 'appointment' AND appointment_time <= NOW() THEN 0
-           WHEN type = 'walk-in' THEN 1
-           ELSE 2
-         END,
-         CASE WHEN type = 'appointment' THEN appointment_time ELSE joined_at END ASC
+       AND status IN ${ACTIVE_QUEUE_STATUSES}
+       ORDER BY ${QUEUE_ORDER}
        LIMIT 1`,
       [queue_id]
     );
@@ -219,15 +213,8 @@ async function serveNext(req, res) {
        FROM queue_entries qe
        JOIN services s ON qe.service_id = s.id
        WHERE qe.queue_id = $1
-         AND qe.status IN ('waiting', 'almost-ready')
-       ORDER BY
-         qe.is_emergency DESC,
-         CASE
-           WHEN qe.type = 'appointment' AND qe.appointment_time <= NOW() THEN 0
-           WHEN qe.type = 'walk-in' THEN 1
-           ELSE 2
-         END,
-         CASE WHEN qe.type = 'appointment' THEN qe.appointment_time ELSE qe.joined_at END ASC
+         AND qe.status IN ${ACTIVE_QUEUE_STATUSES}
+       ORDER BY ${QUEUE_ORDER_QE}
        LIMIT 1`,
       [queue_id]
     )
@@ -284,21 +271,19 @@ async function getUserQueue(req, res) {
     const user_id = req.user.id;
 
     const result = await pool.query(
-      `SELECT qe.*, s.name AS service_name,
-         (SELECT COUNT(*) + 1
-          FROM queue_entries q2
-          WHERE q2.queue_id = qe.queue_id
-            AND q2.status IN ('waiting', 'almost-ready')
-            AND q2.id != qe.id
-            AND (
-              q2.is_emergency > qe.is_emergency
-              OR (q2.is_emergency = qe.is_emergency AND q2.joined_at < qe.joined_at)
-            )
-         ) AS computed_position
-       FROM queue_entries qe
-       JOIN services s ON qe.service_id = s.id
-       WHERE qe.user_id = $1 AND qe.status IN ('waiting', 'almost-ready')
-       ORDER BY qe.joined_at ASC`,
+      `SELECT *
+       FROM (
+         SELECT qe.*, s.name AS service_name,
+           ROW_NUMBER() OVER (
+             PARTITION BY qe.queue_id
+             ORDER BY ${QUEUE_ORDER_QE}
+           ) AS computed_position
+         FROM queue_entries qe
+         JOIN services s ON qe.service_id = s.id
+         WHERE qe.status IN ${ACTIVE_QUEUE_STATUSES}
+       ) ranked
+       WHERE ranked.user_id = $1
+       ORDER BY ranked.joined_at ASC`,
       [user_id]
     );
 
@@ -361,37 +346,74 @@ async function updateStatus(req, res) {
 }
 
 async function reorderQueue(req, res) {
+  let client;
+
   try {
     const { service_id } = req.params;
     const { entryId, direction } = req.body;
 
-    const current = await pool.query(
-      `SELECT id, position FROM queue_entries WHERE id = $1`,
-      [entryId]
+    if (direction !== "up" && direction !== "down") {
+      return res.status(400).json({ error: "direction must be 'up' or 'down'" });
+    }
+
+    client = await pool.pool.connect();
+    await client.query("BEGIN");
+
+    const entriesResult = await client.query(
+      `SELECT id, is_emergency
+       FROM queue_entries
+       WHERE service_id = $1
+         AND status IN ${ACTIVE_QUEUE_STATUSES}
+       ORDER BY ${QUEUE_ORDER}
+       FOR UPDATE`,
+      [service_id]
     );
 
-    if (current.rows.length === 0) {
+    const entries = entriesResult.rows;
+    const currentIndex = entries.findIndex((entry) => entry.id === entryId);
+
+    if (currentIndex === -1) {
+      await client.query("ROLLBACK");
       return res.status(404).json({ error: "Entry not found" });
     }
 
-    const currentPos = current.rows[0].position;
-    const swapPos = direction === "up" ? currentPos - 1 : currentPos + 1;
+    const targetIndex = direction === "up" ? currentIndex - 1 : currentIndex + 1;
+    const currentEntry = entries[currentIndex];
+    const targetEntry = entries[targetIndex];
 
-    await pool.query(
-      `UPDATE queue_entries
-       SET position = CASE
-         WHEN position = $1 THEN $2
-         WHEN position = $2 THEN $1
-         ELSE position
-       END
-       WHERE service_id = $3`,
-      [currentPos, swapPos, service_id]
-    );
+    if (!targetEntry || targetEntry.is_emergency !== currentEntry.is_emergency) {
+      await client.query("ROLLBACK");
+      return res.json({ message: "Entry is already at the queue boundary" });
+    }
+
+    entries[currentIndex] = targetEntry;
+    entries[targetIndex] = currentEntry;
+
+    const movedDownEntryId = direction === "down" ? currentEntry.id : targetEntry.id;
+
+    for (const [index, entry] of entries.entries()) {
+      if (entry.id === movedDownEntryId) {
+        await client.query(
+          `UPDATE queue_entries SET position = $1, status = 'waiting' WHERE id = $2`,
+          [index + 1, entry.id]
+        );
+      } else {
+        await client.query(
+          `UPDATE queue_entries SET position = $1 WHERE id = $2`,
+          [index + 1, entry.id]
+        );
+      }
+    }
+
+    await client.query("COMMIT");
 
     res.json({ message: "Queue reordered" });
   } catch (err) {
+    await client?.query("ROLLBACK").catch(() => {});
     console.error(err);
     res.status(500).json({ error: "Failed to reorder queue" });
+  } finally {
+    client?.release();
   }
 }
 
