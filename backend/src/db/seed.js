@@ -1,4 +1,4 @@
-require("dotenv").config()
+require("../config/env")
 const { pool } = require("./database")
 const { hashPasswordSync } = require("../utils/password")
 

@@ -26,7 +26,7 @@ async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
         localStorage.removeItem("user")
         window.dispatchEvent(new Event("auth:expired"))
       }
-      throw new Error("Session expired. Please log in again.")
+      return Promise.reject(new Error("Session expired"))
     }
     const err = await res.json().catch(() => ({ message: res.statusText }))
     throw new Error(err.message ?? err.error ?? "Request failed")

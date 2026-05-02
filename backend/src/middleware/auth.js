@@ -1,4 +1,5 @@
 const jwt = require("jsonwebtoken")
+const { getJwtSecret } = require("../config/env")
 
 function verifyToken(req, res, next) {
   const authHeader = req.headers["authorization"]
@@ -8,7 +9,14 @@ function verifyToken(req, res, next) {
     return res.status(401).json({ message: "No token provided" })
   }
 
-  jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => {
+  let jwtSecret
+  try {
+    jwtSecret = getJwtSecret()
+  } catch (err) {
+    return next(err)
+  }
+
+  jwt.verify(token, jwtSecret, (err, decoded) => {
     if (err) {
       return res.status(401).json({ message: "Invalid or expired token" })
     }

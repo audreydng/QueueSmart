@@ -149,14 +149,23 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (typeof window === "undefined") return
+  
     const storedUser = localStorage.getItem("user")
-    if (!storedUser) return
+    const token = localStorage.getItem("token")
+  
+    if (!storedUser || !token) return
+  
     try {
       const user = JSON.parse(storedUser) as User
       setCurrentUser(user)
-      fetchServices().then((svcs: Service[]) => refreshAll(user, svcs))
-    } catch { /* ignore */ }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+  
+      fetchServices().then((svcs: Service[]) =>
+        refreshAll(user, svcs)
+      )
+    } catch {
+      localStorage.removeItem("user")
+      localStorage.removeItem("token")
+    }
   }, [])
 
   useEffect(() => {

@@ -1,5 +1,6 @@
 const jwt = require("jsonwebtoken")
 const db = require("../db/database")
+const { getJwtSecret } = require("../config/env")
 const { hashPassword, comparePassword } = require("../utils/password")
 
 const VALID_ROLES = ["user", "staff", "administrator"]
@@ -70,7 +71,7 @@ async function login(req, res, next) {
 
     const token = jwt.sign(
       { id: user.id, email: user.email, role: user.role, name: user.name },
-      process.env.JWT_SECRET,
+      getJwtSecret(),
       { expiresIn: "8h" }
     )
 
