@@ -79,6 +79,8 @@ export const api = {
       apiFetch<unknown>(`/services/${id}`, { method: "PUT", body: JSON.stringify(data) }),
     toggle: (id: string) =>
       apiFetch<unknown>(`/services/${id}/toggle`, { method: "PATCH" }),
+    delete: (id: string) =>
+      apiFetch<unknown>(`/services/${id}`, { method: "DELETE" }),
   },
 
   queue: {

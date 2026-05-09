@@ -10,8 +10,19 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Plus, Pencil } from "lucide-react"
+import { Plus, Pencil, Trash2 } from "lucide-react"
 import type { PriorityLevel } from "@/lib/types"
 
 function ServiceForm({
@@ -125,9 +136,11 @@ function ServiceForm({
 }
 
 export function ServiceManagement() {
-  const { services, createService, updateService } = useApp()
+  const { services, createService, updateService, removeService } = useApp()
   const [createOpen, setCreateOpen] = useState(false)
   const [editId, setEditId] = useState<string | null>(null)
+  const [removingId, setRemovingId] = useState<string | null>(null)
+  const [removeError, setRemoveError] = useState<string | null>(null)
 
   const editService = services.find((s) => s.id === editId)
 
@@ -173,6 +186,7 @@ export function ServiceManagement() {
           <CardDescription>{services.length} services (General Checkup, Vaccination, Blood Test, Consultation)</CardDescription>
         </CardHeader>
         <CardContent>
+          {removeError && <p className="mb-4 text-sm text-destructive">{removeError}</p>}
           <div className="overflow-x-auto -mx-6">
             <Table>
               <TableHeader>
@@ -212,35 +226,72 @@ export function ServiceManagement() {
                       </Badge>
                     </TableCell>
                     <TableCell className="text-right">
-                      <Dialog open={editId === service.id} onOpenChange={(open) => setEditId(open ? service.id : null)}>
-                        <DialogTrigger asChild>
-                          <Button size="sm" variant="ghost">
-                            <Pencil className="h-3.5 w-3.5" />
-                            <span className="sr-only">Edit</span>
-                          </Button>
-                        </DialogTrigger>
-                        <DialogContent>
-                          <DialogHeader>
-                            <DialogTitle>Edit Service</DialogTitle>
-                            <DialogDescription>Update service details.</DialogDescription>
-                          </DialogHeader>
-                          {editService && (
-                            <ServiceForm
-                              initialValues={{
-                                name: editService.name,
-                                description: editService.description,
-                                expectedDuration: editService.expectedDuration,
-                                priority: editService.priority,
-                              }}
-                              submitLabel="Save Changes"
-                              onSubmit={(values) => {
-                                updateService(editService.id, values)
-                                setEditId(null)
-                              }}
-                            />
-                          )}
-                        </DialogContent>
-                      </Dialog>
+                      <div className="flex justify-end gap-1">
+                        <Dialog open={editId === service.id} onOpenChange={(open) => setEditId(open ? service.id : null)}>
+                          <DialogTrigger asChild>
+                            <Button size="sm" variant="ghost">
+                              <Pencil className="h-3.5 w-3.5" />
+                              <span className="sr-only">Edit service</span>
+                            </Button>
+                          </DialogTrigger>
+                          <DialogContent>
+                            <DialogHeader>
+                              <DialogTitle>Edit Service</DialogTitle>
+                              <DialogDescription>Update service details.</DialogDescription>
+                            </DialogHeader>
+                            {editService && (
+                              <ServiceForm
+                                initialValues={{
+                                  name: editService.name,
+                                  description: editService.description,
+                                  expectedDuration: editService.expectedDuration,
+                                  priority: editService.priority,
+                                }}
+                                submitLabel="Save Changes"
+                                onSubmit={(values) => {
+                                  updateService(editService.id, values)
+                                  setEditId(null)
+                                }}
+                              />
+                            )}
+                          </DialogContent>
+                        </Dialog>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button size="sm" variant="ghost" disabled={removingId === service.id}>
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                              <span className="sr-only">Remove service</span>
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Remove service?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                This will remove {service.name}, its queue, appointments, and related history.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction
+                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                onClick={async () => {
+                                  setRemovingId(service.id)
+                                  setRemoveError(null)
+                                  try {
+                                    await removeService(service.id)
+                                  } catch (err) {
+                                    setRemoveError((err as Error).message || "Failed to remove service.")
+                                  } finally {
+                                    setRemovingId(null)
+                                  }
+                                }}
+                              >
+                                Remove
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}

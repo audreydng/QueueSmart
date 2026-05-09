@@ -12,6 +12,7 @@ function normalizeEntry(e) {
     serviceId: e.service_id,
     serviceName: e.service_name,
     userId: e.user_id,
+    userName: e.user_name ?? null,
     position: parseInt(e.computed_position ?? e.position, 10),
     status: e.status,
     type: e.type ?? "walk-in",
@@ -28,13 +29,14 @@ async function getQueue(_req, res) {
     const result = await pool.query(
       `SELECT *
        FROM (
-         SELECT qe.*, s.name AS service_name,
+         SELECT qe.*, s.name AS service_name, up.name AS user_name,
            ROW_NUMBER() OVER (
              PARTITION BY qe.queue_id
              ORDER BY ${QUEUE_ORDER_QE}
            ) AS computed_position
          FROM queue_entries qe
          JOIN services s ON qe.service_id = s.id
+         LEFT JOIN user_profiles up ON up.id = qe.user_id
          WHERE qe.status IN ${ACTIVE_QUEUE_STATUSES}
        ) ranked
        ORDER BY ranked.queue_id, ranked.computed_position ASC`
@@ -273,13 +275,14 @@ async function getUserQueue(req, res) {
     const result = await pool.query(
       `SELECT *
        FROM (
-         SELECT qe.*, s.name AS service_name,
+         SELECT qe.*, s.name AS service_name, up.name AS user_name,
            ROW_NUMBER() OVER (
              PARTITION BY qe.queue_id
              ORDER BY ${QUEUE_ORDER_QE}
            ) AS computed_position
          FROM queue_entries qe
          JOIN services s ON qe.service_id = s.id
+         LEFT JOIN user_profiles up ON up.id = qe.user_id
          WHERE qe.status IN ${ACTIVE_QUEUE_STATUSES}
        ) ranked
        WHERE ranked.user_id = $1

@@ -298,12 +298,14 @@ async function seed() {
       { email: "alice@example.com",    svc: SVC.checkup,  pos: 1, status: "almost-ready", type: "walk-in",     minsAgo: 95, emergency: false },
       { email: "bob@example.com",      svc: SVC.checkup,  pos: 2, status: "waiting",      type: "appointment", minsAgo: 50, emergency: false, apptMins: 20 },
       { email: "charlie@example.com",  svc: SVC.checkup,  pos: 3, status: "waiting",      type: "walk-in",     minsAgo: 20, emergency: true  },
+      { email: "tessa@example.com",  svc: SVC.checkup,  pos: 4, status: "waiting",      type: "walk-in",     minsAgo: 10, emergency: false  },
       // Vaccination — 2 waiting
       { email: "dana@example.com",     svc: SVC.vaccine,  pos: 1, status: "almost-ready", type: "appointment", minsAgo: 75, emergency: false, apptMins: -10 },
       { email: "elena@example.com",    svc: SVC.vaccine,  pos: 2, status: "waiting",      type: "walk-in",     minsAgo: 35, emergency: false },
       // Blood Test — 2 waiting, Nurse Avery manages this
       { email: "farah@example.com",    svc: SVC.blood,    pos: 1, status: "waiting",      type: "walk-in",     minsAgo: 110, emergency: true  },
       { email: "gabriel@example.com",  svc: SVC.blood,    pos: 2, status: "waiting",      type: "appointment", minsAgo: 40,  emergency: false, apptMins: 45 },
+      { email: "priya@example.com",  svc: SVC.blood,    pos: 3, status: "waiting",      type: "walk-in", minsAgo: 34,  emergency: false },
       // Consultation — 2 waiting
       { email: "hannah@example.com",   svc: SVC.consult,  pos: 1, status: "almost-ready", type: "walk-in",     minsAgo: 65, emergency: false },
       { email: "isaac@example.com",    svc: SVC.consult,  pos: 2, status: "waiting",      type: "appointment", minsAgo: 25, emergency: false, apptMins: 70 },
@@ -313,6 +315,8 @@ async function seed() {
       // Pharmacy Pickup — 2 waiting, Front Desk Lee manages this
       { email: "lina@example.com",     svc: SVC.pharmacy, pos: 1, status: "waiting",      type: "appointment", minsAgo: 30, emergency: false, apptMins: 30 },
       { email: "marcus@example.com",   svc: SVC.pharmacy, pos: 2, status: "waiting",      type: "walk-in",     minsAgo: 12, emergency: false },
+      { email: "quinn@example.com",   svc: SVC.pharmacy, pos: 3, status: "waiting",      type: "walk-in",     minsAgo: 10, emergency: false },
+      { email: "rose@example.com",   svc: SVC.pharmacy, pos: 4, status: "waiting",      type: "walk-in",     minsAgo: 08, emergency: false },
     ]
 
     for (const e of activeEntries) {

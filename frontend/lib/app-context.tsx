@@ -29,6 +29,7 @@ interface AppContextType {
   leaveQueue: (entryId: string) => Promise<void>
   createService: (service: Omit<Service, "id" | "createdAt" | "isOpen">) => Promise<void>
   updateService: (id: string, updates: Partial<Service>) => Promise<void>
+  removeService: (id: string) => Promise<void>
   toggleServiceOpen: (id: string) => Promise<void>
   serveNextUser: (serviceId: string) => Promise<void>
   setQueueEntryStatus: (entryId: string, status: QueueStatus) => Promise<void>
@@ -73,6 +74,11 @@ function normalizeHistoryEntry(entry: Record<string, unknown>, services: Service
   }
 }
 
+function clearStoredSession() {
+  localStorage.removeItem("token")
+  localStorage.removeItem("user")
+}
+
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const [currentUser, setCurrentUser] = useState<User | null>(null)
   const [users, setUsers] = useState<User[]>([])
@@ -81,6 +87,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [history, setHistory] = useState<HistoryEntry[]>([])
   const [appointments, setAppointments] = useState<Appointment[]>([])
+
+  const clearUserData = useCallback(() => {
+    setUsers([])
+    setQueueEntries([])
+    setNotifications([])
+    setHistory([])
+    setAppointments([])
+  }, [])
 
   // ─── Data fetching helpers ────────────────────────────────────────────────
 
@@ -157,29 +171,28 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   
     try {
       const user = JSON.parse(storedUser) as User
+      clearUserData()
       setCurrentUser(user)
   
       fetchServices().then((svcs: Service[]) =>
         refreshAll(user, svcs)
       )
     } catch {
-      localStorage.removeItem("user")
-      localStorage.removeItem("token")
+      clearStoredSession()
+      clearUserData()
     }
-  }, [])
+  }, [clearUserData, fetchServices, refreshAll])
 
   useEffect(() => {
     if (typeof window === "undefined") return
     const handleAuthExpired = () => {
+      clearStoredSession()
       setCurrentUser(null)
-      setQueueEntries([])
-      setNotifications([])
-      setHistory([])
-      setAppointments([])
+      clearUserData()
     }
     window.addEventListener("auth:expired", handleAuthExpired)
     return () => window.removeEventListener("auth:expired", handleAuthExpired)
-  }, [])
+  }, [clearUserData])
 
   // ─── Auth ─────────────────────────────────────────────────────────────────
 
@@ -188,6 +201,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       const res = await api.auth.login(email, password)
       const token = res.token
       const user = res.user as unknown as User
+      clearUserData()
       localStorage.setItem("token", token)
       localStorage.setItem("user", JSON.stringify(user))
       setCurrentUser(user)
@@ -197,7 +211,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     } catch (err) {
       return { success: false, error: (err as Error).message }
     }
-  }, [fetchServices, refreshAll])
+  }, [clearUserData, fetchServices, refreshAll])
 
   const register = useCallback(async (
     email: string,
@@ -214,14 +228,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, [login])
 
   const logout = useCallback(() => {
-    localStorage.removeItem("token")
-    localStorage.removeItem("user")
+    clearStoredSession()
     setCurrentUser(null)
-    setQueueEntries([])
-    setNotifications([])
-    setHistory([])
-    setAppointments([])
-  }, [])
+    clearUserData()
+  }, [clearUserData])
 
   // ─── Queue ────────────────────────────────────────────────────────────────
 
@@ -309,6 +319,17 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     await api.services.update(id, updates)
     await fetchServices()
   }, [fetchServices])
+
+  const removeService = useCallback(async (id: string) => {
+    await api.services.delete(id)
+    setServices((prev: Service[]) => prev.filter((service: Service) => service.id !== id))
+    setQueueEntries((prev: QueueEntry[]) => prev.filter((entry: QueueEntry) => entry.serviceId !== id))
+    setAppointments((prev: Appointment[]) => prev.filter((appointment: Appointment) => appointment.serviceId !== id))
+    setHistory((prev: HistoryEntry[]) => prev.filter((entry: HistoryEntry) => entry.serviceId !== id))
+    if (currentUser?.role === "administrator") {
+      await fetchStaff()
+    }
+  }, [currentUser, fetchStaff])
 
   const toggleServiceOpen = useCallback(async (id: string) => {
     await api.services.toggle(id)
@@ -423,9 +444,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const getUserNameById = useCallback(
     (id: string) => {
       const user = users.find((u: User) => u.id === id)
-      return user?.name ?? "Unknown User"
+      const queueEntry = queueEntries.find((e: QueueEntry) => e.userId === id && e.userName)
+      return user?.name ?? queueEntry?.userName ?? "Unknown User"
     },
-    [users]
+    [users, queueEntries]
   )
 
   return (
@@ -447,6 +469,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         leaveQueue,
         createService,
         updateService,
+        removeService,
         toggleServiceOpen,
         serveNextUser,
         setQueueEntryStatus,

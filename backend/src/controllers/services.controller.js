@@ -147,4 +147,31 @@ async function toggleService(req, res, next) {
   }
 }
 
-module.exports = { getServices, createService, updateService, toggleService }
+// DELETE /api/services/:id (admin only)
+async function deleteService(req, res, next) {
+  let client
+
+  try {
+    client = await db.pool.connect()
+    await client.query("BEGIN")
+
+    const result = await client.query("SELECT * FROM services WHERE id = $1", [req.params.id])
+    if (!result || result.rows.length === 0) {
+      await client.query("ROLLBACK")
+      return res.status(404).json({ error: "Service not found" })
+    }
+
+    await client.query("UPDATE user_profiles SET service_id = NULL WHERE service_id = $1", [req.params.id])
+    const deleted = await client.query("DELETE FROM services WHERE id = $1 RETURNING *", [req.params.id])
+
+    await client.query("COMMIT")
+    return res.json({ success: true, service: normalizeService(deleted.rows[0]) })
+  } catch (err) {
+    if (client) await client.query("ROLLBACK").catch(() => {})
+    next(err)
+  } finally {
+    if (client) client.release()
+  }
+}
+
+module.exports = { getServices, createService, updateService, toggleService, deleteService }

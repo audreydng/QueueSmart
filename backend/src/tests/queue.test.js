@@ -1,7 +1,9 @@
 require("dotenv").config()
+const jwt = require("jsonwebtoken")
 const request = require("supertest")
 const app = require("../app")
 const db = require("../db/database")
+const { getJwtSecret } = require("../config/env")
 const { hashPasswordSync } = require("../utils/password")
 
 let aliceToken, danaToken, staffToken, adminToken
@@ -127,6 +129,22 @@ describe("POST /api/queue/join", () => {
     expect(res.statusCode).toBe(400);
     expect(res.body.error).toMatch(/already in the queue/i);
   });
+
+  test("should return 401 if the token user no longer exists", async () => {
+    const staleToken = jwt.sign(
+      { id: "772eb595-2103-469c-bc99-35fed10b1e81", role: "user" },
+      getJwtSecret(),
+      { expiresIn: "8h" }
+    )
+
+    const res = await request(app)
+      .post("/api/queue/join")
+      .set("Authorization", `Bearer ${staleToken}`)
+      .send({ service_id: "11111111-1111-1111-1111-111111111111" })
+
+    expect(res.statusCode).toBe(401)
+    expect(res.body.message).toMatch(/invalid or expired/i)
+  })
 })
 
 describe("DELETE /api/queue/leave/:service_id", () => {
@@ -203,6 +221,7 @@ describe("GET /api/queue", () => {
     expect(res.statusCode).toBe(200)
     expect(Array.isArray(res.body)).toBe(true)
     expect(res.body.length).toBeGreaterThan(0)
+    expect(res.body[0].userName).toBe("Alice")
   })
 
   test("should return 403 if regular user", async () => {

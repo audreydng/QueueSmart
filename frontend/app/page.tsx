@@ -17,16 +17,44 @@ import { PriorityRules } from "@/components/admin/administrator/priority-rules"
 import { EmployeeManagement } from "@/components/admin/administrator/employee-management"
 import { Reports } from "@/components/admin/administrator/reports"
 import { NotificationsScreen } from "@/components/notifications"
+import type { UserRole } from "@/lib/types"
+
+function getDefaultViewForRole(role: UserRole) {
+  if (role === "staff") return "staff-dashboard"
+  if (role === "administrator") return "admin-dashboard"
+  return "dashboard"
+}
+
+function isViewAllowedForRole(view: string, role: UserRole) {
+  if (!view) return true
+  if (view === "notifications") return true
+  if (role === "staff") return view === "staff-dashboard" || view === "queue-management" || view.startsWith("queue-management:")
+  if (role === "administrator") {
+    return ["admin-dashboard", "service-management", "priority-rules", "employee-management", "reports"].includes(view)
+  }
+  return ["dashboard", "join-queue", "queue-status", "history", "schedule"].includes(view)
+}
 
 function AppContent() {
   const { currentUser } = useApp()
   const [authMode, setAuthMode] = useState<"login" | "register">("login")
   const [currentView, setCurrentView] = useState<string>("")
   const [mounted, setMounted] = useState(false)
+  const currentUserId = currentUser?.id
+  const currentUserRole = currentUser?.role
 
   useEffect(() => {
     setMounted(true)
   }, [])
+
+  useEffect(() => {
+    if (!currentUserRole) {
+      setCurrentView("")
+      return
+    }
+
+    setCurrentView(getDefaultViewForRole(currentUserRole))
+  }, [currentUserId, currentUserRole])
 
   if (!mounted) {
     return null
@@ -40,13 +68,8 @@ function AppContent() {
     return <LoginForm onSwitchToRegister={() => setAuthMode("register")} />
   }
 
-  const defaultView =
-    currentUser.role === "staff"
-      ? "staff-dashboard"
-      : currentUser.role === "administrator"
-        ? "admin-dashboard"
-        : "dashboard"
-  const activeView = currentView || defaultView
+  const defaultView = getDefaultViewForRole(currentUser.role)
+  const activeView = isViewAllowedForRole(currentView, currentUser.role) ? currentView || defaultView : defaultView
 
   function renderContent() {
     if (activeView.startsWith("queue-management:")) {

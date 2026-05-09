@@ -299,3 +299,59 @@ describe("PATCH /api/services/:id/toggle", () => {
     expect(res.statusCode).toBe(403)
   })
 })
+
+// DELETE /api/services/:id
+
+describe("DELETE /api/services/:id", () => {
+  test("should delete a service and related queue data (admin)", async () => {
+    const serviceId = "00000000-0000-0000-0000-000000000001"
+    await db.query(
+      "UPDATE user_profiles SET service_id = $1 WHERE id = (SELECT id FROM user_credentials WHERE email = $2)",
+      [serviceId, "staff@example.com"]
+    )
+
+    const res = await request(app)
+      .delete(`/api/services/${serviceId}`)
+      .set("Authorization", `Bearer ${adminToken}`)
+
+    expect(res.statusCode).toBe(200)
+    expect(res.body.success).toBe(true)
+    expect(res.body.service.id).toBe(serviceId)
+
+    const service = await db.query("SELECT id FROM services WHERE id = $1", [serviceId])
+    const queues = await db.query("SELECT id FROM queues WHERE service_id = $1", [serviceId])
+    const entries = await db.query("SELECT id FROM queue_entries WHERE service_id = $1", [serviceId])
+    const staff = await db.query(
+      "SELECT up.service_id FROM user_profiles up JOIN user_credentials uc ON uc.id = up.id WHERE uc.email = $1",
+      ["staff@example.com"]
+    )
+
+    expect(service.rows.length).toBe(0)
+    expect(queues.rows.length).toBe(0)
+    expect(entries.rows.length).toBe(0)
+    expect(staff.rows[0].service_id).toBeNull()
+  })
+
+  test("should return 404 if service not found", async () => {
+    const res = await request(app)
+      .delete("/api/services/11111111-1111-1111-1111-111111111111")
+      .set("Authorization", `Bearer ${adminToken}`)
+
+    expect(res.statusCode).toBe(404)
+  })
+
+  test("should return 403 if not admin", async () => {
+    const res = await request(app)
+      .delete("/api/services/00000000-0000-0000-0000-000000000001")
+      .set("Authorization", `Bearer ${userToken}`)
+
+    expect(res.statusCode).toBe(403)
+  })
+
+  test("should return 401 if no token", async () => {
+    const res = await request(app)
+      .delete("/api/services/00000000-0000-0000-0000-000000000001")
+
+    expect(res.statusCode).toBe(401)
+  })
+})

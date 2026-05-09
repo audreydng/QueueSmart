@@ -1,7 +1,10 @@
 const jwt = require("jsonwebtoken")
+const db = require("../db/database")
 const { getJwtSecret } = require("../config/env")
 
-function verifyToken(req, res, next) {
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+
+async function verifyToken(req, res, next) {
   const authHeader = req.headers["authorization"]
   const token = authHeader && authHeader.split(" ")[1]
 
@@ -16,16 +19,35 @@ function verifyToken(req, res, next) {
     return next(err)
   }
 
-  jwt.verify(token, jwtSecret, (err, decoded) => {
-    if (err) {
+  try {
+    const decoded = jwt.verify(token, jwtSecret)
+    const userId = decoded.id || decoded.userId || decoded.sub
+
+    if (!userId || !UUID_REGEX.test(userId)) {
       return res.status(401).json({ message: "Invalid or expired token" })
     }
+
+    const userResult = await db.query(
+      "SELECT id, role FROM user_credentials WHERE id = $1",
+      [userId]
+    )
+
+    if (userResult.rows.length === 0) {
+      return res.status(401).json({ message: "Invalid or expired token" })
+    }
+
+    const user = userResult.rows[0]
     req.user = {
-      id: decoded.id || decoded.userId || decoded.sub,
-      role: decoded.role
+      id: user.id,
+      role: user.role
     }
     next()
-  })
+  } catch (err) {
+    if (err.name === "JsonWebTokenError" || err.name === "TokenExpiredError") {
+      return res.status(401).json({ message: "Invalid or expired token" })
+    }
+    next(err)
+  }
 }
 
 // Middleware factory: restrict to specific roles

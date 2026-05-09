@@ -1,6 +1,6 @@
 const express = require("express")
 const router = express.Router()
-const { getServices, createService, updateService, toggleService } = require("../controllers/services.controller")
+const { getServices, createService, updateService, toggleService, deleteService } = require("../controllers/services.controller")
 const { verifyToken, requireRole } = require("../middleware/auth")
 const { requireFields } = require("../middleware/validate")
 
@@ -15,5 +15,8 @@ router.put("/:id", verifyToken, requireRole("administrator"), updateService)
 
 // PATCH /api/services/:id/toggle - toggle open/closed (admin only)
 router.patch("/:id/toggle", verifyToken, requireRole("administrator"), toggleService)
+
+// DELETE /api/services/:id - delete service (admin only)
+router.delete("/:id", verifyToken, requireRole("administrator"), deleteService)
 
 module.exports = router

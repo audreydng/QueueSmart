@@ -126,7 +126,7 @@ export function QueueManagement({ initialServiceId }: { initialServiceId?: strin
                         <TableCell className="font-mono text-muted-foreground">{entry.position}</TableCell>
                         <TableCell>
                           <div className="flex items-center gap-2">
-                            <span className="font-medium">{getUserNameById(entry.userId)}</span>
+                            <span className="font-medium">{entry.userName ?? getUserNameById(entry.userId)}</span>
                             {entry.isEmergency && (
                               <Badge className="bg-destructive/15 text-destructive border border-destructive/30 gap-1">
                                 <Siren className="h-3 w-3" />

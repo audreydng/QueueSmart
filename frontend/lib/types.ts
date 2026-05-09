@@ -30,7 +30,9 @@ export type QueueEntryType = "walk-in" | "appointment"
 export interface QueueEntry {
   id: string
   userId: string
+  userName?: string | null
   serviceId: string
+  serviceName?: string | null
   position: number
   status: QueueStatus
   type: QueueEntryType
